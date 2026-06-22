@@ -50,18 +50,30 @@ function isChanged(f) {
 // quando não sobra conteúdo útil. O motor ainda re-orça por token como garantia final.
 const NOISE_RE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb)$|\.min\.(js|css)$|(^|\/)(dist|build|node_modules)\//i;
 const BINARY_RE = /\.(png|jpe?g|gif|webp|ico|svg|pdf|zip|gz|woff2?|ttf|eot|mp4|mov|mp3|wav)$/i;
-const PER_FILE_MAX = 2500; // chars por arquivo no prompt
-const TOTAL_MAX = 8000;    // teto total do diff enviado (o modelo se perde em paredes de texto)
 
 function isNoise(p) { return NOISE_RE.test(p) || BINARY_RE.test(p); }
-function isDocish(p) { return /\.(md|markdown|txt|rst|mdx)$/i.test(p); }
-function countDiffLines(diff) {
-  let add = 0, del = 0;
-  for (const ln of diff.split('\n')) {
-    if (ln[0] === '+' && !ln.startsWith('+++')) add++;
-    else if (ln[0] === '-' && !ln.startsWith('---')) del++;
+
+function statusLabel(f) {
+  if (f.index === '?' && f.working === '?') return 'novo';
+  const c = isStaged(f) ? f.index : f.working;
+  return ({ A: 'novo', M: 'modificado', D: 'removido', R: 'renomeado', C: 'copiado' })[c] || 'alterado';
+}
+
+// Texto "adicionado" de um arquivo, limpo pro modelo entender: para diff, só as linhas
+// "+"; para não rastreado, o conteúdo. Tira frontmatter YAML e metadados ruidosos.
+function addedText(raw, untracked) {
+  const lines = untracked
+    ? raw.split('\n')
+    : raw.split('\n').filter((l) => l[0] === '+' && !l.startsWith('+++')).map((l) => l.slice(1));
+  let inFM = false;
+  const out = [];
+  for (const l of lines) {
+    if (l.trim() === '---') { inFM = !inFM; continue; }
+    if (inFM) continue;
+    if (/^(slug|category|date|tags|author|draft|image):/i.test(l.trim())) continue;
+    if (l.trim()) out.push(l.trim());
   }
-  return { add, del };
+  return out.join('\n');
 }
 
 function FileRow({ f, area, onClick, onAct, selected }) {
@@ -223,32 +235,21 @@ export function GitPanel({ active, visible }) {
     setGenTokens(0);
     setGenBusy(true);
     try {
-      // Código antes de docs/gerados: o conteúdo mais relevante sobra se truncar.
-      const ordered = [...list].sort((a, b) => (isDocish(a.path) ? 1 : 0) - (isDocish(b.path) ? 1 : 0));
-      const parts = [];
-      const skipped = [];
-      let total = 0;
-      for (const f of ordered.slice(0, 30)) {
-        if (isNoise(f.path)) { skipped.push(f.path); continue; }
-        if (total >= TOTAL_MAX) { skipped.push(f.path); continue; }
-        const r = await window.api.gitDiff(projectPath, f.path, isStaged(f), f.index === '?' && f.working === '?');
+      // Modelo pequeno funciona melhor com um RESUMO curto e limpo (não o diff cru):
+      // a lista de arquivos + um trecho do conteúdo da mudança principal.
+      const fileList = list.map((f) => `- ${statusLabel(f)}: ${f.path}`).join('\n');
+      const pool = list.filter((f) => !isNoise(f.path));
+      let primary = null; // { path, text } — arquivo com mais conteúdo adicionado
+      for (const f of (pool.length ? pool : list).slice(0, 30)) {
+        const untracked = f.index === '?' && f.working === '?';
+        const r = await window.api.gitDiff(projectPath, f.path, isStaged(f), untracked);
         if (!(r?.ok && r.diff)) continue;
-        let d = r.diff;
-        if (d.length > PER_FILE_MAX) {
-          const { add, del } = countDiffLines(d);
-          d = d.slice(0, PER_FILE_MAX) + `\n…(${f.path}: +${add}/−${del} linhas, truncado)…`;
-        }
-        parts.push(d);
-        total += d.length;
+        const text = addedText(r.diff, untracked);
+        if (text && (!primary || text.length > primary.text.length)) primary = { path: f.path, text };
       }
-      let diff = parts.join('\n').slice(0, TOTAL_MAX);
-      // Sem conteúdo útil (ex.: só lock files) → resumo dos arquivos alterados.
-      if (!diff.trim()) {
-        diff = 'Arquivos alterados: ' + list.map((f) => f.path).join(', ');
-      } else if (skipped.length) {
-        diff += '\nOutros arquivos alterados (sem diff): ' + skipped.join(', ');
-      }
-      const res = await window.api.llmGenerate('commit', diff);
+      let input = 'Mudanças neste commit:\n' + fileList;
+      if (primary) input += `\n\nConteúdo principal (${primary.path}):\n` + primary.text.slice(0, 700);
+      const res = await window.api.llmGenerate('commit', input);
       if (res?.ok && res.text) setMessage(res.text);
       else toast.error('Não consegui gerar agora.');
     } catch {

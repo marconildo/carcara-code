@@ -297,7 +297,7 @@ export function SettingsModal({ open, onClose }) {
             <div className="mx-auto max-w-3xl">
               <p className="text-sm text-muted-foreground">
                 Uma IA local minúscula, offline, pra tarefas curtas (ex.: sugerir mensagem de commit).
-                É opcional: ative, baixe o modelo uma vez (~400&nbsp;MB) e ligue só o que quiser.
+                É opcional: ative, baixe o modelo uma vez (~640&nbsp;MB) e ligue só o que quiser.
                 Desligada, o app funciona normalmente.
               </p>
 
@@ -329,7 +329,7 @@ export function SettingsModal({ open, onClose }) {
                         </button>
                       : <button type="button" onClick={doDownload}
                           className="flex items-center gap-1.5 rounded-md border border-primary px-2.5 py-1.5 text-[13px] text-primary transition-colors hover:bg-muted [&_svg]:size-3.5">
-                          <Download /> Baixar (~400 MB)
+                          <Download /> Baixar (~640 MB)
                         </button>)}
                   </div>
                   {dl && (

@@ -4,10 +4,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const MODEL_ID = 'qwen3-0.6b-q4_k_m';
+const MODEL_ID = 'qwen3-0.6b-q8_0';
+// Q8_0 (não Q4): a quantização Q4 fazia o 0.6B "parar cedo" (saída vazia/cortada).
 // node-llama-cpp v3 prefixes HuggingFace downloads with "hf_{org}_" — must match.
-const MODEL_FILE = 'hf_unsloth_Qwen3-0.6B-Q4_K_M.gguf';
-const MODEL_URI = 'hf:unsloth/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_K_M.gguf';
+const MODEL_FILE = 'hf_unsloth_Qwen3-0.6B-Q8_0.gguf';
+const MODEL_URI = 'hf:unsloth/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf';
 
 // Qwen3 é um modelo "raciocinador": emite um bloco <think>…</think> antes da resposta.
 // Pra esta tarefa curta, raciocinar só deixou mais lento e menos preciso (testado),
@@ -15,7 +16,7 @@ const MODEL_URI = 'hf:unsloth/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_K_M.gguf';
 // o raciocínio, basta NO_THINK = false (e subir maxTokens/timeout, que ele gera mais).
 const NO_THINK = true;
 
-const GEN = { contextSize: 6144, temperature: 0.2, maxTokens: 120, timeoutMs: 30000 };
+const GEN = { contextSize: 6144, temperature: 0.2, maxTokens: 256, timeoutMs: 120000 };
 // Reserva de tokens pra resposta + margem, ao orçar quanto do diff cabe no contexto.
 const OUTPUT_RESERVE = 160;
 const BUDGET_MARGIN = 64;
@@ -151,6 +152,18 @@ function fitToBudget(model, text, maxTokens) {
   return model.detokenize(toks.slice(0, keep)) + marker;
 }
 
+// Extrai a mensagem da saída crua: descarta o raciocínio (<think>…</think>) e pega a
+// 1ª linha útil. Vazio se o modelo só raciocinou sem concluir.
+function parseOut(raw) {
+  raw = String(raw || '');
+  const closeIdx = raw.lastIndexOf('</think>');
+  if (/<think>/i.test(raw) && closeIdx === -1) return '';
+  let text = closeIdx !== -1 ? raw.slice(closeIdx + '</think>'.length) : raw;
+  text = text.replace(/<\/?think>/gi, '').trim();
+  const firstLine = text.split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+  return firstLine.replace(/^["'`]|["'`]$/g, '').trim();
+}
+
 async function generate({ userDataDir, task, input, onToken }) {
   const base = SYSTEM[task];
   if (!base) throw new Error('Tarefa de IA desconhecida: ' + task);
@@ -158,44 +171,55 @@ async function generate({ userDataDir, task, input, onToken }) {
   const sys = (NO_THINK ? '/no_think\n' : '') + base;
   const model = await ensureModel(userDataDir);
   const { LlamaChatSession } = await lib();
-  // Contexto fresco por chamada (sem histórico entre gerações); descartado no fim.
-  const context = await model.createContext({ contextSize: GEN.contextSize });
+  const frame = USER_FRAME[task];
+  // Orça quanto do diff cabe: contexto − prompt do sistema − moldura − reserva de saída.
+  const prefix = NO_THINK ? '/no_think ' : '';
+  const overhead = model.tokenize(sys).length
+    + (frame ? model.tokenize(frame('')).length : 0)
+    + model.tokenize(prefix).length;
+  const budget = GEN.contextSize - overhead - OUTPUT_RESERVE - BUDGET_MARGIN;
+  const fitted = fitToBudget(model, String(input || ''), Math.max(64, budget));
+  // Qwen3: o soft-switch /no_think precisa estar na mensagem do usuário pra valer.
+  const userMsg = prefix + (frame ? frame(fitted) : fitted);
+
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), GEN.timeoutMs);
+  // O 0.6B às vezes devolve vazio pro MESMO input (é não-determinístico). Tentamos de
+  // novo com temperatura um pouco maior até sair algo. O contador de tokens continua
+  // subindo entre as tentativas (feedback de que está trabalhando).
+  const temps = [GEN.temperature, 0.5, 0.7, 0.9];
+  let toks = 0;
+  let best = '';
   try {
-    const session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt: sys });
-    const frame = USER_FRAME[task];
-    // Orça quanto do diff cabe: contexto − prompt do sistema − moldura − reserva de saída.
-    const prefix = NO_THINK ? '/no_think ' : '';
-    const overhead = model.tokenize(sys).length
-      + (frame ? model.tokenize(frame('')).length : 0)
-      + model.tokenize(prefix).length;
-    const budget = GEN.contextSize - overhead - OUTPUT_RESERVE - BUDGET_MARGIN;
-    const fitted = fitToBudget(model, String(input || ''), Math.max(64, budget));
-    const framed = frame ? frame(fitted) : fitted;
-    // Qwen3: o soft-switch /no_think precisa estar na mensagem do usuário pra valer.
-    const userMsg = prefix + framed;
-    let toks = 0;
-    const out = await session.prompt(userMsg, {
-      // Conta os tokens gerados e reporta ao vivo (feedback "trabalhando… N tokens").
-      onToken: (tokens) => { toks += (tokens && tokens.length) || 0; if (typeof onToken === 'function') onToken(toks); },
-      temperature: GEN.temperature,
-      maxTokens: GEN.maxTokens,
-      signal: ac.signal,
-    });
-    // A resposta final vem DEPOIS do </think>. Se o modelo abriu <think> mas não fechou
-    // (estourou os tokens raciocinando), considera incompleto e devolve vazio.
-    const raw = String(out || '');
-    const closeIdx = raw.lastIndexOf('</think>');
-    if (/<think>/i.test(raw) && closeIdx === -1) return '';
-    let text = closeIdx !== -1 ? raw.slice(closeIdx + '</think>'.length) : raw;
-    text = text.replace(/<\/?think>/gi, '').trim();
-    const firstLine = text.split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
-    return firstLine.replace(/^["'`]|["'`]$/g, '').trim();
+    for (let i = 0; i < temps.length; i++) {
+      const context = await model.createContext({ contextSize: GEN.contextSize });
+      try {
+        const session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt: sys });
+        const out = await session.prompt(userMsg, {
+          onToken: (tokens) => { toks += (tokens && tokens.length) || 0; if (typeof onToken === 'function') onToken(toks); },
+          temperature: temps[i],
+          maxTokens: GEN.maxTokens,
+          signal: ac.signal,
+        });
+        const msg = parseOut(out);
+        if (looksComplete(msg)) return msg;      // resposta boa → pronto
+        if (msg.length > best.length) best = msg; // guarda a melhor parcial
+      } finally {
+        try { await context.dispose(); } catch {}
+      }
+    }
+    return best; // nenhuma "completa": devolve a melhor parcial (melhor que vazio)
   } finally {
     clearTimeout(timer);
-    try { await context.dispose(); } catch {}
   }
+}
+
+// Heurística de "mensagem completa": evita aceitar saídas vazias ou cortadas
+// (o 0.6B às vezes para cedo, gerando "feat: adicion").
+function looksComplete(msg) {
+  if (!msg) return false;
+  const words = msg.split(/\s+/).filter(Boolean);
+  return msg.length >= 16 && words.length >= 4;
 }
 
 module.exports = { MODEL_ID, MODEL_FILE, MODEL_URI, modelPath, status, download, remove, warmup, generate };
