@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   GitBranch, ArrowUp, ArrowDown, Plus, Minus, Check,
-  AlertTriangle, Copy, X,
+  AlertTriangle, Copy, X, Sparkles,
 } from 'lucide-react';
 // Ícones animados (lucide-animated) usados nos botões da barra do Git.
 import { GitBranchIcon } from './ui/git-branch.jsx';
@@ -84,6 +84,8 @@ export function GitPanel({ active, visible }) {
   const [remoteUrl, setRemoteUrl] = useState('');
   const [branchMenu, setBranchMenu] = useState(null); // { all } quando aberto
   const [newBranch, setNewBranch] = useState('');
+  const [llm, setLlm] = useState({ enabled: false, ready: false, commit: false });
+  const [genBusy, setGenBusy] = useState(false);
 
   const refresh = useCallback(async (silent) => {
     if (!projectPath) { setStatus(null); return; }
@@ -95,6 +97,22 @@ export function GitPanel({ active, visible }) {
 
   // Recarrega ao abrir a aba / trocar de projeto.
   useEffect(() => { if (visible) refresh(); }, [visible, refresh]);
+
+  // Config da IA local: o botão "✨ Gerar" só aparece se ligada + modelo pronto + recurso ativo.
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    (async () => {
+      const [cfg, st] = await Promise.all([window.api.llmGetConfig(), window.api.llmStatus()]);
+      if (cancelled) return;
+      setLlm({
+        enabled: !!cfg?.enabled,
+        commit: !!cfg?.features?.commit,
+        ready: !!st?.installed,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [visible]);
 
   // Auto-refresh enquanto a aba está aberta: poll leve + ao voltar o foco da janela.
   // Assim as alterações feitas pelo Claude (no chat) aparecem sem clicar em atualizar.
@@ -168,6 +186,28 @@ export function GitPanel({ active, visible }) {
   const commitAll = staged.length === 0 && changes.length > 0; // nada em stage → commita tudo
   const canCommit = hasChanges && message.trim().length > 0 && !busy;
 
+  const generateCommit = async () => {
+    const list = staged.length > 0 ? staged : changes;
+    if (list.length === 0) return;
+    setGenBusy(true);
+    try {
+      // Junta os diffs dos arquivos relevantes (truncado pra caber no contexto do modelo).
+      const parts = [];
+      for (const f of list.slice(0, 20)) {
+        const r = await window.api.gitDiff(projectPath, f.path, isStaged(f), f.index === '?' && f.working === '?');
+        if (r?.ok && r.diff) parts.push(r.diff);
+      }
+      const diff = parts.join('\n').slice(0, 6000);
+      const res = await window.api.llmGenerate('commit', diff || list.map((f) => f.path).join('\n'));
+      if (res?.ok && res.text) setMessage(res.text);
+      else toast.error('Não consegui gerar agora.');
+    } catch {
+      toast.error('Não consegui gerar agora.');
+    } finally {
+      setGenBusy(false);
+    }
+  };
+
   const openBranchMenu = async () => {
     if (branchMenu) { setBranchMenu(null); return; }
     const res = await window.api.gitBranches(projectPath);
@@ -240,6 +280,14 @@ export function GitPanel({ active, visible }) {
           rows={2}
           className="w-full resize-none rounded-md border bg-background px-2.5 py-1.5 text-[13px] outline-none focus:ring-1 focus:ring-ring"
         />
+        {llm.enabled && llm.commit && llm.ready && (
+          <Button size="sm" variant="ghost" className="mt-1.5 w-full gap-1.5 text-muted-foreground"
+            disabled={genBusy || !hasChanges}
+            onClick={generateCommit}>
+            <Sparkles className={'size-4 ' + (genBusy ? 'animate-pulse' : '')} />
+            {genBusy ? 'Gerando…' : 'Gerar mensagem'}
+          </Button>
+        )}
         <Button size="sm" className="mt-1.5 w-full gap-1.5" disabled={!canCommit}
           onClick={() => run('commit', async () => {
             // Nada em stage? Adiciona tudo antes (igual ao "Commit All" do VS Code).
