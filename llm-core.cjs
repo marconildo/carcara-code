@@ -15,7 +15,10 @@ const MODEL_URI = 'hf:unsloth/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_K_M.gguf';
 // o raciocínio, basta NO_THINK = false (e subir maxTokens/timeout, que ele gera mais).
 const NO_THINK = true;
 
-const GEN = { contextSize: 2048, temperature: 0.2, maxTokens: 120, timeoutMs: 30000 };
+const GEN = { contextSize: 6144, temperature: 0.2, maxTokens: 120, timeoutMs: 30000 };
+// Reserva de tokens pra resposta + margem, ao orçar quanto do diff cabe no contexto.
+const OUTPUT_RESERVE = 160;
+const BUDGET_MARGIN = 64;
 
 // Prompt de sistema fixo por tarefa. Travado: saída de uma linha, sem explicação.
 const SYSTEM = {
@@ -137,6 +140,17 @@ async function warmup(userDataDir) {
   catch (e) { return { ok: false, error: (e && e.message) || String(e) }; }
 }
 
+// Trunca um texto pra caber em maxTokens, medindo com o tokenizer do próprio modelo.
+// Sem isso, um diff grande estoura o contexto e a geração falha antes de começar.
+function fitToBudget(model, text, maxTokens) {
+  if (!text) return text;
+  const toks = model.tokenize(text);
+  if (toks.length <= maxTokens) return text;
+  const marker = '\n…[diff truncado]…';
+  const keep = Math.max(1, maxTokens - model.tokenize(marker).length);
+  return model.detokenize(toks.slice(0, keep)) + marker;
+}
+
 async function generate({ userDataDir, task, input, onToken }) {
   const base = SYSTEM[task];
   if (!base) throw new Error('Tarefa de IA desconhecida: ' + task);
@@ -151,9 +165,16 @@ async function generate({ userDataDir, task, input, onToken }) {
   try {
     const session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt: sys });
     const frame = USER_FRAME[task];
-    const framed = frame ? frame(String(input || '')) : String(input || '');
+    // Orça quanto do diff cabe: contexto − prompt do sistema − moldura − reserva de saída.
+    const prefix = NO_THINK ? '/no_think ' : '';
+    const overhead = model.tokenize(sys).length
+      + (frame ? model.tokenize(frame('')).length : 0)
+      + model.tokenize(prefix).length;
+    const budget = GEN.contextSize - overhead - OUTPUT_RESERVE - BUDGET_MARGIN;
+    const fitted = fitToBudget(model, String(input || ''), Math.max(64, budget));
+    const framed = frame ? frame(fitted) : fitted;
     // Qwen3: o soft-switch /no_think precisa estar na mensagem do usuário pra valer.
-    const userMsg = (NO_THINK ? '/no_think ' : '') + framed;
+    const userMsg = prefix + framed;
     let toks = 0;
     const out = await session.prompt(userMsg, {
       // Conta os tokens gerados e reporta ao vivo (feedback "trabalhando… N tokens").

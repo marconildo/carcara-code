@@ -44,6 +44,26 @@ function isChanged(f) {
   return (f.working !== ' ' && f.working !== '?') || (f.index === '?' && f.working === '?');
 }
 
+// --- Montagem do diff pra IA gerar o commit ---
+// Modelo pequeno funciona melhor com POUCO e RELEVANTE: filtramos ruído (lock/gerado/
+// binário), limitamos o tamanho por arquivo e no total, e caímos num resumo de arquivos
+// quando não sobra conteúdo útil. O motor ainda re-orça por token como garantia final.
+const NOISE_RE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb)$|\.min\.(js|css)$|(^|\/)(dist|build|node_modules)\//i;
+const BINARY_RE = /\.(png|jpe?g|gif|webp|ico|svg|pdf|zip|gz|woff2?|ttf|eot|mp4|mov|mp3|wav)$/i;
+const PER_FILE_MAX = 2500; // chars por arquivo no prompt
+const TOTAL_MAX = 8000;    // teto total do diff enviado (o modelo se perde em paredes de texto)
+
+function isNoise(p) { return NOISE_RE.test(p) || BINARY_RE.test(p); }
+function isDocish(p) { return /\.(md|markdown|txt|rst|mdx)$/i.test(p); }
+function countDiffLines(diff) {
+  let add = 0, del = 0;
+  for (const ln of diff.split('\n')) {
+    if (ln[0] === '+' && !ln.startsWith('+++')) add++;
+    else if (ln[0] === '-' && !ln.startsWith('---')) del++;
+  }
+  return { add, del };
+}
+
 function FileRow({ f, area, onClick, onAct, selected }) {
   const code = area === 'staged' ? f.index : (f.index === '?' ? '?' : f.working);
   const [letter, color, label] = statusBadge(code);
@@ -203,14 +223,32 @@ export function GitPanel({ active, visible }) {
     setGenTokens(0);
     setGenBusy(true);
     try {
-      // Junta os diffs dos arquivos relevantes (truncado pra caber no contexto do modelo).
+      // Código antes de docs/gerados: o conteúdo mais relevante sobra se truncar.
+      const ordered = [...list].sort((a, b) => (isDocish(a.path) ? 1 : 0) - (isDocish(b.path) ? 1 : 0));
       const parts = [];
-      for (const f of list.slice(0, 20)) {
+      const skipped = [];
+      let total = 0;
+      for (const f of ordered.slice(0, 30)) {
+        if (isNoise(f.path)) { skipped.push(f.path); continue; }
+        if (total >= TOTAL_MAX) { skipped.push(f.path); continue; }
         const r = await window.api.gitDiff(projectPath, f.path, isStaged(f), f.index === '?' && f.working === '?');
-        if (r?.ok && r.diff) parts.push(r.diff);
+        if (!(r?.ok && r.diff)) continue;
+        let d = r.diff;
+        if (d.length > PER_FILE_MAX) {
+          const { add, del } = countDiffLines(d);
+          d = d.slice(0, PER_FILE_MAX) + `\n…(${f.path}: +${add}/−${del} linhas, truncado)…`;
+        }
+        parts.push(d);
+        total += d.length;
       }
-      const diff = parts.join('\n').slice(0, 6000);
-      const res = await window.api.llmGenerate('commit', diff || list.map((f) => f.path).join('\n'));
+      let diff = parts.join('\n').slice(0, TOTAL_MAX);
+      // Sem conteúdo útil (ex.: só lock files) → resumo dos arquivos alterados.
+      if (!diff.trim()) {
+        diff = 'Arquivos alterados: ' + list.map((f) => f.path).join(', ');
+      } else if (skipped.length) {
+        diff += '\nOutros arquivos alterados (sem diff): ' + skipped.join(', ');
+      }
+      const res = await window.api.llmGenerate('commit', diff);
       if (res?.ok && res.text) setMessage(res.text);
       else toast.error('Não consegui gerar agora.');
     } catch {
