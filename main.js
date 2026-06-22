@@ -925,9 +925,17 @@ ipcMain.on('shell:resize', (evt, { projectPath, cols, rows }) => {
 // Usa simple-git, que é só um wrapper do git do sistema — então herda o
 // credential manager pra push/pull no GitHub, igual o VS Code faz.
 let _sg = null;
+// Env do git SEM variáveis de editor: o app sempre commita com -m (nunca abre editor),
+// e o simple-git bloqueia operações quando EDITOR/GIT_EDITOR está no ambiente
+// ("Use of GIT_EDITOR is not permitted"). Acontece quando o app herda essas vars.
+function gitEnv(extra) {
+  const e = { ...process.env, ...(extra || {}) };
+  delete e.EDITOR; delete e.VISUAL; delete e.GIT_EDITOR; delete e.GIT_SEQUENCE_EDITOR;
+  return e;
+}
 function gitFor(cwd) {
   if (!_sg) { const m = require('simple-git'); _sg = m.simpleGit || m.default || m; }
-  return _sg(cwd);
+  return _sg(cwd).env(gitEnv());
 }
 // Roda uma operação git e devolve sempre { ok, ... } — nunca derruba o handler.
 async function gitTry(fn) {
@@ -953,7 +961,7 @@ function shadowDir(projectPath) {
 
 function shadowGit(projectPath) {
   const dir = shadowDir(projectPath);
-  return gitFor(projectPath).env({ ...process.env, GIT_DIR: dir, GIT_WORK_TREE: path.resolve(projectPath) });
+  return gitFor(projectPath).env(gitEnv({ GIT_DIR: dir, GIT_WORK_TREE: path.resolve(projectPath) }));
 }
 
 async function ensureShadow(projectPath) {
