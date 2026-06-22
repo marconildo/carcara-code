@@ -27,14 +27,29 @@ let _llama, _model, _modelPathLoaded; // modelo fica quente após a 1ª geraçã
 function modelsDir(userDataDir) { return path.join(userDataDir, 'models'); }
 function modelPath(userDataDir) { return path.join(modelsDir(userDataDir), MODEL_FILE); }
 
-async function status(userDataDir) {
-  const p = modelPath(userDataDir);
+// Returns the full path of the first *.gguf found in modelsDir, or null if none / dir missing.
+function installedModelPath(userDataDir) {
+  const dir = modelsDir(userDataDir);
   try {
-    const st = fs.statSync(p);
-    return { installed: true, path: p, sizeBytes: st.size };
+    const entries = fs.readdirSync(dir);
+    const gguf = entries.find(name => name.endsWith('.gguf'));
+    return gguf ? path.join(dir, gguf) : null;
   } catch {
-    return { installed: false, path: p, sizeBytes: 0 };
+    return null;
   }
+}
+
+async function status(userDataDir) {
+  const resolved = installedModelPath(userDataDir);
+  if (resolved) {
+    try {
+      const st = fs.statSync(resolved);
+      return { installed: true, path: resolved, sizeBytes: st.size };
+    } catch {
+      // file disappeared between readdir and stat
+    }
+  }
+  return { installed: false, path: modelPath(userDataDir), sizeBytes: 0 };
 }
 
 async function download(userDataDir, onProgress) {
@@ -57,12 +72,21 @@ async function remove(userDataDir) {
   _model = null; _modelPathLoaded = null;
   try { if (_llama) await _llama.dispose(); } catch {}
   _llama = null;
-  try { fs.unlinkSync(modelPath(userDataDir)); } catch {}
+  // Delete all *.gguf in the models dir (glob-based, robust to filename changes).
+  const dir = modelsDir(userDataDir);
+  try {
+    const entries = fs.readdirSync(dir);
+    for (const name of entries) {
+      if (name.endsWith('.gguf')) {
+        try { fs.unlinkSync(path.join(dir, name)); } catch {}
+      }
+    }
+  } catch {}
 }
 
 async function ensureModel(userDataDir) {
-  const p = modelPath(userDataDir);
-  if (!fs.existsSync(p)) throw new Error('Modelo não baixado.');
+  const p = installedModelPath(userDataDir);
+  if (!p) throw new Error('Modelo não baixado.');
   const { getLlama } = await lib();
   if (!_llama) _llama = await getLlama();
   if (!_model || _modelPathLoaded !== p) {
