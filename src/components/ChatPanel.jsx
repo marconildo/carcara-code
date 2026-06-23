@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
-import { Plus, X, Library, Pencil, Trash2, ArrowUpLeft } from 'lucide-react';
+import { Plus, X, Library, Pencil, Trash2, ArrowUpLeft, Search, Star } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import { useTheme } from '@/lib/theme.jsx';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable.jsx';
@@ -141,11 +141,15 @@ function PromptMenu({ projectPath, sessionId, onInsert }) {
   const [saving, setSaving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null); // prompt aguardando confirmação de remoção
   const [viewing, setViewing] = useState(null); // prompt aberto pra leitura (markdown destacado)
+  const [query, setQuery] = useState(''); // busca na lista
   const btnRef = useRef(null);
 
   const load = async () => {
     const r = await window.api.promptsList(projectPath);
-    setItems(r && r.ok ? r.items : []);
+    // Backfill: prompts antigos sem createdAt recebem um valor crescente pela ordem
+    // (último = mais novo), pra a ordenação "mais novo em cima" funcionar pra todos.
+    const list = (r && r.ok ? r.items : []).map((p, i) => ({ ...p, createdAt: p.createdAt ?? i + 1 }));
+    setItems(list);
     try {
       const [c, s] = await Promise.all([window.api.llmGetConfig(), window.api.llmStatus()]);
       setLlmTitle(!!c?.enabled && !!c?.features?.promptTitle && !!s?.installed);
@@ -158,10 +162,16 @@ function PromptMenu({ projectPath, sessionId, onInsert }) {
     setEditingId(null);
     setConfirmDel(null);
     setViewing(null);
+    setQuery('');
     setOpen(true);
     load();
   };
   const newPrompt = () => { setViewing(null); setEditingId(null); setDraft({ title: '', body: '' }); };
+  const toggleFav = (p) => {
+    const next = items.map((x) => (x.id === p.id ? { ...x, fav: !x.fav } : x));
+    persist(next);
+    if (viewing?.id === p.id) setViewing(next.find((x) => x.id === p.id));
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -189,7 +199,7 @@ function PromptMenu({ projectPath, sessionId, onInsert }) {
     if (editingId) {
       persist(items.map((p) => (p.id === editingId ? { ...p, title, body } : p)));
     } else {
-      persist([...items, { id: crypto.randomUUID(), title, body }]);
+      persist([...items, { id: crypto.randomUUID(), title, body, createdAt: Date.now(), fav: false }]);
     }
     setDraft({ title: '', body: '' });
     setEditingId(null);
@@ -200,6 +210,12 @@ function PromptMenu({ projectPath, sessionId, onInsert }) {
     if (editingId === p.id) { setEditingId(null); setDraft({ title: '', body: '' }); }
     setConfirmDel(null);
   };
+
+  // Favoritos no topo, depois mais novos primeiro; filtrados pela busca (título + corpo).
+  const q = query.trim().toLowerCase();
+  const visibleItems = items
+    .filter((p) => !q || (String(p.title) + ' ' + String(p.body)).toLowerCase().includes(q))
+    .sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || (b.createdAt || 0) - (a.createdAt || 0));
 
   return (
     <>
@@ -234,8 +250,22 @@ function PromptMenu({ projectPath, sessionId, onInsert }) {
             <div className="flex min-h-0 flex-1">
               {/* Lista (esquerda) */}
               <div className="flex w-[42%] min-w-0 flex-col border-r">
-                <div className="flex shrink-0 items-center justify-between px-3 pt-3">
-                  <span className="text-[12px] font-medium text-muted-foreground">{items.length} prompt{items.length === 1 ? '' : 's'}</span>
+                {/* Busca */}
+                <div className="shrink-0 px-3 pt-3">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Buscar prompts…"
+                      className="h-8 w-full rounded-md border bg-card pl-8 pr-2 text-[12.5px] outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center justify-between px-3 pt-2">
+                  <span className="text-[12px] font-medium text-muted-foreground">
+                    {q ? `${visibleItems.length} de ${items.length}` : `${items.length} prompt${items.length === 1 ? '' : 's'}`}
+                  </span>
                   <button type="button" onClick={newPrompt}
                     className={cn('flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium transition-colors',
                       !viewing && editingId === null ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted')}>
@@ -245,13 +275,22 @@ function PromptMenu({ projectPath, sessionId, onInsert }) {
                 <div className="min-h-0 flex-1 overflow-y-auto p-3">
                   {items.length === 0 ? (
                     <p className="px-2 py-8 text-center text-[13px] text-muted-foreground">Nenhum prompt salvo ainda.</p>
+                  ) : visibleItems.length === 0 ? (
+                    <p className="px-2 py-8 text-center text-[13px] text-muted-foreground">Nada encontrado para “{query}”.</p>
                   ) : (
                     <div className="flex flex-col gap-1.5">
-                      {items.map((p) => (
+                      {visibleItems.map((p) => (
                         <button key={p.id} type="button" onClick={() => setViewing(p)}
                           className={cn('group w-full rounded-lg border p-3 text-left transition-colors hover:border-primary/50',
                             (viewing?.id === p.id || editingId === p.id) && 'border-primary ring-1 ring-primary')}>
                           <div className="flex items-start gap-2">
+                            <span
+                              role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); toggleFav(p); }}
+                              title={p.fav ? 'Desafixar' : 'Fixar no topo'}
+                              className={cn('mt-0.5 grid size-6 shrink-0 place-items-center rounded [&_svg]:size-4',
+                                p.fav ? 'text-amber-500' : 'text-muted-foreground opacity-0 hover:text-amber-500 group-hover:opacity-100')}>
+                              <Star className={p.fav ? 'fill-amber-500' : ''} />
+                            </span>
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[13.5px] font-medium">{p.title}</span>
                               <span className="mt-0.5 break-words text-[12px] leading-relaxed text-muted-foreground line-clamp-3">{p.body}</span>
@@ -278,6 +317,11 @@ function PromptMenu({ projectPath, sessionId, onInsert }) {
               {viewing && editingId === null ? (
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2.5">
+                    <button type="button" onClick={() => toggleFav(viewing)} title={viewing.fav ? 'Desafixar' : 'Fixar no topo'}
+                      className={cn('grid size-8 shrink-0 place-items-center rounded-md border [&_svg]:size-4',
+                        viewing.fav ? 'text-amber-500' : 'text-muted-foreground hover:bg-muted')}>
+                      <Star className={viewing.fav ? 'fill-amber-500' : ''} />
+                    </button>
                     <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{viewing.title}</span>
                     <button type="button" onClick={() => insert(viewing)} disabled={!sessionId}
                       className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40 [&_svg]:size-3.5">
