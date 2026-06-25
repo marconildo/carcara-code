@@ -135,7 +135,23 @@ export function GitPanel({ active, visible }) {
     return <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-muted-foreground">Abra um projeto para ver o Git aqui.</div>;
   }
 
-  // Erro geral (ex.: git não instalado).
+  // Git não instalado na máquina: aviso amigável + botão pra baixar (comum em PC de não-dev).
+  if (status && status.ok === false && status.gitMissing) {
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+        <GitBranch className="size-8 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">O Git não está instalado neste computador.</p>
+        <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
+          A aba Git usa o Git do sistema. Instale uma vez, reabra o Carcará e ela passa a funcionar.
+        </p>
+        <Button size="sm" onClick={() => window.api.openExternal('https://git-scm.com/download/win')}>
+          Baixar o Git
+        </Button>
+      </div>
+    );
+  }
+
+  // Erro geral.
   if (status && status.ok === false) {
     return <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-red-500">Erro do Git: {status.error}</div>;
   }

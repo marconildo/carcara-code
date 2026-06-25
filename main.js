@@ -1275,7 +1275,15 @@ function gitFor(cwd) {
 // Roda uma operação git e devolve sempre { ok, ... } — nunca derruba o handler.
 async function gitTry(fn) {
   try { return { ok: true, ...(await fn()) }; }
-  catch (e) { return { ok: false, error: (e && e.message) ? e.message : String(e) }; }
+  catch (e) {
+    const msg = (e && e.message) ? e.message : String(e);
+    // Git não instalado na máquina (comum em PC de não-dev): o spawn falha com ENOENT.
+    // Sinaliza com gitMissing pra UI mostrar um aviso amigável em vez do stack trace.
+    if ((e && e.code === 'ENOENT') || /spawn git ENOENT/i.test(msg)) {
+      return { ok: false, gitMissing: true, error: 'O Git não está instalado neste computador.' };
+    }
+    return { ok: false, error: msg };
+  }
 }
 
 // ---------- Checkpoints (shadow git: "voltar no tempo") ----------
