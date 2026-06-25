@@ -35,8 +35,8 @@ const TOOLS = [
     key: 'node',
     name: 'Node.js',
     Icon: Hexagon,
-    level: 'recommended',
-    desc: 'Necessário pra rodar e pré-visualizar os projetos dentro do Carcará (o servidor de dev). O Claude funciona sem ele, mas os projetos não rodam.',
+    level: 'essential',
+    desc: 'Faz o Preview funcionar — ver o projeto rodando ao vivo é o coração do Carcará. Sem Node, sem Preview.',
     note: 'Baixe a versão LTS.',
     url: 'https://nodejs.org/en/download',
   },
@@ -82,7 +82,7 @@ export function SetupScreen({ open, onClose }) {
   if (!open) return null;
 
   const stateOf = (key) => (loading && !status ? 'loading' : status ? !!status[key] : false);
-  const claudeReady = status && status.claude; // o único essencial
+  const essentialsReady = status && status.claude && status.node; // Claude + Node (Preview)
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-background">
@@ -133,7 +133,7 @@ export function SetupScreen({ open, onClose }) {
           </Button>
           <div className="flex-1" />
           <Button size="sm" onClick={onClose}>
-            {claudeReady ? 'Tudo pronto — entrar' : 'Continuar mesmo assim'}
+            {essentialsReady ? 'Tudo pronto — entrar' : 'Continuar mesmo assim'}
           </Button>
         </div>
 
