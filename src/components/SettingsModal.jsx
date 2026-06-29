@@ -208,9 +208,9 @@ export function SettingsModal({ open, onClose }) {
           {tab === 'ai' && (
             <div className="mx-auto max-w-3xl">
               <p className="text-sm text-muted-foreground">
-                {t('settings.aiIntro').split(t('settings.aiNewSessions'))[0]}
+                {t('settings.aiIntroPre')}
                 <span className="font-medium text-foreground">{t('settings.aiNewSessions')}</span>
-                {t('settings.aiIntro').split(t('settings.aiNewSessions'))[1]}
+                {t('settings.aiIntroPost')}
               </p>
 
               <div className="mt-5 flex flex-col gap-3">
