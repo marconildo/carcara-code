@@ -55,6 +55,23 @@ function saveConfig(cfg) {
   try { fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2)); } catch {}
 }
 
+const NATIVE_STRINGS = require('./main.i18n.cjs');
+
+// Idioma do processo main: config.json > idioma do sistema > 'pt'.
+function currentLang() {
+  const cfg = loadConfig();
+  if (cfg.language === 'pt' || cfg.language === 'en') return cfg.language;
+  return (app.getLocale() || '').toLowerCase().startsWith('pt') ? 'pt' : 'en';
+}
+// Traduz uma chave nativa no idioma atual, com interpolação de {tokens}.
+function tn(key, vars) {
+  const lang = currentLang();
+  const dict = NATIVE_STRINGS[lang] || NATIVE_STRINGS.pt;
+  let s = dict[key] != null ? dict[key] : (NATIVE_STRINGS.pt[key] != null ? NATIVE_STRINGS.pt[key] : key);
+  if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+  return s;
+}
+
 function killProc(proc) {
   if (!proc) return;
   if (process.platform === 'win32') {
@@ -150,17 +167,17 @@ app.on('web-contents-created', (_event, contents) => {
   contents.on('context-menu', (_e, params) => {
     const can = params.editFlags;
     Menu.buildFromTemplate([
-      { label: 'Voltar', enabled: contents.canGoBack(), click: () => contents.goBack() },
-      { label: 'Avançar', enabled: contents.canGoForward(), click: () => contents.goForward() },
-      { label: 'Recarregar', click: () => contents.reload() },
+      { label: tn('ctx_back'), enabled: contents.canGoBack(), click: () => contents.goBack() },
+      { label: tn('ctx_forward'), enabled: contents.canGoForward(), click: () => contents.goForward() },
+      { label: tn('ctx_reload'), click: () => contents.reload() },
       { type: 'separator' },
-      { label: 'Recortar', role: 'cut', enabled: can.canCut },
-      { label: 'Copiar', role: 'copy', enabled: can.canCopy },
-      { label: 'Colar', role: 'paste', enabled: can.canPaste },
-      { label: 'Selecionar tudo', role: 'selectAll' },
-      ...(params.linkURL ? [{ type: 'separator' }, { label: 'Copiar link', click: () => clipboard.writeText(params.linkURL) }] : []),
+      { label: tn('ctx_cut'), role: 'cut', enabled: can.canCut },
+      { label: tn('ctx_copy'), role: 'copy', enabled: can.canCopy },
+      { label: tn('ctx_paste'), role: 'paste', enabled: can.canPaste },
+      { label: tn('ctx_select_all'), role: 'selectAll' },
+      ...(params.linkURL ? [{ type: 'separator' }, { label: tn('ctx_copy_link'), click: () => clipboard.writeText(params.linkURL) }] : []),
       { type: 'separator' },
-      { label: 'Inspecionar elemento', click: () => { lastInspect = { x: params.x, y: params.y }; safeSend('devtools:toggle'); } },
+      { label: tn('ctx_inspect'), click: () => { lastInspect = { x: params.x, y: params.y }; safeSend('devtools:toggle'); } },
     ]).popup();
   });
 
@@ -381,7 +398,7 @@ ipcMain.handle('ai:set', (evt, { projectPath, cli, custom }) => {
 // Adiciona uma ou mais pastas de projeto (de qualquer lugar do disco).
 ipcMain.handle('projects:add', async () => {
   const res = await dialog.showOpenDialog(mainWindow, {
-    title: 'Escolha a(s) pasta(s) de projeto',
+    title: tn('dialog_choose_folders'),
     properties: ['openDirectory', 'multiSelections'],
   });
   if (res.canceled) return { added: 0 };
@@ -1153,8 +1170,8 @@ function maybeNotifyDone(entry, asking) {
   try {
     if (Notification && !Notification.isSupported()) return;
     const name = path.basename(entry.projectPath);
-    const body = asking ? `Claude precisa de você em ${name}` : `Claude terminou em ${name}`;
-    const n = new Notification({ title: 'Carcará Code', body });
+    const body = asking ? tn('notify_asking', { name }) : tn('notify_done', { name });
+    const n = new Notification({ title: tn('notify_title'), body });
     n.on('click', () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore();
@@ -1181,6 +1198,12 @@ function activityOnData(entry, data) {
 ipcMain.on('activity:setActive', (evt, { projectPath }) => { activeProjectPath = projectPath || null; });
 ipcMain.handle('notify:get', () => ({ enabled: notifyEnabled() }));
 ipcMain.handle('notify:set', (evt, { enabled }) => { const c = loadConfig(); c.notify = !!enabled; saveConfig(c); return { ok: true }; });
+ipcMain.handle('lang:get', () => ({ lang: currentLang() }));
+ipcMain.handle('lang:set', (evt, { lang }) => {
+  if (lang !== 'pt' && lang !== 'en') return { ok: false };
+  const c = loadConfig(); c.language = lang; saveConfig(c);
+  return { ok: true };
+});
 
 ipcMain.handle('term:ensure', (evt, { sessionId, projectPath, cols, rows, theme }) => {
   if (terminals.has(sessionId)) {

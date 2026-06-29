@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld('api', {
   setActiveProject: (projectPath) => ipcRenderer.send('activity:setActive', { projectPath }),
   getNotify: () => ipcRenderer.invoke('notify:get'),
   setNotify: (enabled) => ipcRenderer.invoke('notify:set', { enabled }),
+  getLang: () => ipcRenderer.invoke('lang:get'),
+  setLang: (lang) => ipcRenderer.invoke('lang:set', { lang }),
 
   // Terminal livre (shell comum)
   shellEnsure: (projectPath, cols, rows) => ipcRenderer.invoke('shell:ensure', { projectPath, cols, rows }),

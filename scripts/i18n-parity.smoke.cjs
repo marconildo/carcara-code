@@ -21,6 +21,8 @@ function compare(label, a, b) {
 }
 
 compare('renderer', pt, en);
+const native = require('../main.i18n.cjs');
+compare('native', native.pt, native.en);
 
 if (fail) { console.error(`\n${fail} chave(s) divergente(s).`); process.exit(1); }
 console.log('i18n parity ok');
