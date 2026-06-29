@@ -9,7 +9,8 @@
     "menu_restart_running": "Reiniciar servidor",
     "menu_start_running": "Iniciar servidor",
     "menu_stop_server": "Parar servidor",
-    "menu_remove_project": "Remover da lista"
+    "menu_remove_project": "Remover da lista",
+    "move_tooltip": "Arraste para mover a barra de lado"
   },
   "app": {
     "no_project_selected": "Selecione um projeto",

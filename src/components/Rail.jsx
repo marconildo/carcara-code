@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, RotateCcw, Square } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Square, GripHorizontal } from 'lucide-react';
 import { SettingsIcon } from './ui/settings.jsx';
 import { SearchIcon } from './ui/search.jsx';
 import { colorFor, initials } from '@/lib/projectColor';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 
-export function Rail({ projects, active, activity = {}, onOpen, onAdd, onRemove, onRestart, onStop, onReorder, onOpenSettings, onSearch, width = 64 }) {
+export function Rail({ projects, active, activity = {}, onOpen, onAdd, onRemove, onRestart, onStop, onReorder, onOpenSettings, onSearch, onRailDragStart, onRailDragEnd, width = 64 }) {
   const t = useT();
   const [menu, setMenu] = useState(null);         // { x, y, project }
   const [dragPath, setDragPath] = useState(null); // path do item sendo arrastado
@@ -45,6 +45,15 @@ export function Rail({ projects, active, activity = {}, onOpen, onAdd, onRemove,
       {/* Busca no topo: a "bolinha" que abre a paleta de comandos (Ctrl+K) — projetos,
           arquivos e ações. Fica acima dos projetos pra a pessoa saber que existe. */}
       <div className="flex shrink-0 flex-col items-center px-2">
+        <span
+          draggable
+          onDragStart={(e) => { try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'rail'); } catch {} onRailDragStart?.(); }}
+          onDragEnd={() => onRailDragEnd?.()}
+          title={t('rail.move_tooltip')}
+          className="mb-1.5 grid h-5 w-7 cursor-grab place-items-center rounded text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground active:cursor-grabbing [&_svg]:size-3.5"
+        >
+          <GripHorizontal />
+        </span>
         <button
           onClick={onSearch}
           title={t('rail.search_tooltip')}

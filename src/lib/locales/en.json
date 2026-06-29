@@ -9,7 +9,8 @@
     "menu_restart_running": "Restart server",
     "menu_start_running": "Start server",
     "menu_stop_server": "Stop server",
-    "menu_remove_project": "Remove from list"
+    "menu_remove_project": "Remove from list",
+    "move_tooltip": "Drag to move the sidebar to the other side"
   },
   "app": {
     "no_project_selected": "Select a project",

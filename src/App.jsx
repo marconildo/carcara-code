@@ -341,6 +341,8 @@ export default function App() {
       onReorder={reorderProjects}
       onOpenSettings={() => setSettingsOpen(true)}
       onSearch={() => setPaletteOpen(true)}
+      onRailDragStart={() => { setDragMode('rail'); setDragZone(null); }}
+      onRailDragEnd={endLayoutDrag}
       width={railWidth}
     />
   );
