@@ -41,6 +41,7 @@ import { ResizeBar } from './ui/resize-bar.jsx';
 import { EmptyState } from './ui/empty-state.jsx';
 import { useTheme } from '@/lib/theme.jsx';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 // Preview de markdown renderizado (react-markdown + GFM + highlight), sob demanda.
 const Markdown = lazy(() => import('./Markdown.jsx'));
@@ -128,7 +129,8 @@ function ConfirmDialog({ open, title, message, confirmLabel = 'OK', cancelLabel 
 }
 
 // Diálogo de texto no estilo do app (pede um nome). Usado pelo "Novo arquivo/pasta".
-function PromptDialog({ open, title, placeholder, confirmLabel = 'Criar', onConfirm, onCancel }) {
+function PromptDialog({ open, title, placeholder, confirmLabel, onConfirm, onCancel }) {
+  const t = useT();
   const [val, setVal] = useState('');
   useEffect(() => { if (open) setVal(''); }, [open]);
   if (!open) return null;
@@ -155,8 +157,8 @@ function PromptDialog({ open, title, placeholder, confirmLabel = 'Criar', onConf
           className="mt-4 h-9 w-full rounded-md border bg-background px-3 text-[13px] outline-none focus:ring-1 focus:ring-ring"
         />
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onCancel}>Cancelar</Button>
-          <Button variant="default" size="sm" onClick={() => onConfirm(val)}>{confirmLabel}</Button>
+          <Button variant="secondary" size="sm" onClick={onCancel}>{t('create.cancel')}</Button>
+          <Button variant="default" size="sm" onClick={() => onConfirm(val)}>{confirmLabel ?? t('create.button')}</Button>
         </div>
       </div>
     </div>
@@ -176,6 +178,7 @@ function normPath(p) {
 
 export function CodeView({ active, openRequest }) {
   const { theme } = useTheme();
+  const t = useT();
   // Abas de arquivos abertos. Cada aba carrega o próprio estado (conteúdo, imagem,
   // notice de erro e dirty) pra que alternar entre abas preserve edições não salvas.
   const [tabs, setTabs] = useState([]); // [{ path, name, content, image, notice, dirty }]
@@ -513,8 +516,8 @@ export function CodeView({ active, openRequest }) {
     if (r.image) tab.image = r.image;
     else if (r.pdf) tab.pdf = r.pdf;
     else if (r.xlsx) tab.xlsx = r.xlsx;
-    else if (r.binary) tab.notice = 'Arquivo binario - nao editavel.';
-    else if (r.error) tab.notice = 'Erro: ' + r.error;
+    else if (r.binary) tab.notice = t('code.binary_notice');
+    else if (r.error) tab.notice = t('code.error_notice') + ' ' + r.error;
     else tab.content = r.content;
     setTabs((cur) => [...cur, tab]);
     setActivePath(item.path);
@@ -652,7 +655,7 @@ export function CodeView({ active, openRequest }) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Escape') setQuery(''); }}
-                  placeholder="Buscar arquivos…"
+                  placeholder={t('tree.search_placeholder')}
                   spellCheck={false}
                   className="h-7 w-full rounded-md border bg-background pl-7 pr-7 text-[13px] outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
                 />
@@ -660,7 +663,7 @@ export function CodeView({ active, openRequest }) {
                   <button
                     type="button"
                     onClick={() => setQuery('')}
-                    title="Limpar"
+                    title={t('tree.search_clear')}
                     className="absolute right-1.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -698,7 +701,7 @@ export function CodeView({ active, openRequest }) {
                     );
                   })
                 ) : (
-                  <div className="px-3 py-1 text-xs text-muted-foreground">Nenhum arquivo encontrado.</div>
+                  <div className="px-3 py-1 text-xs text-muted-foreground">{t('tree.no_results')}</div>
                 )
               ) : (
                 <FileTreeCtx.Provider
@@ -728,7 +731,7 @@ export function CodeView({ active, openRequest }) {
             </div>
           </>
         ) : (
-          <div className="px-3 py-1.5 text-sm text-muted-foreground">Abra um projeto.</div>
+          <div className="px-3 py-1.5 text-sm text-muted-foreground">{t('tree.empty')}</div>
         )}
       </div>
       <ResizeBar onMouseDown={startTreeResize} />
@@ -756,7 +759,7 @@ export function CodeView({ active, openRequest }) {
                       <button
                         type="button"
                         onClick={(e) => closeFile(e, t.path)}
-                        title="Fechar"
+                        title={t('code.tabs_close')}
                         className="grid size-4 place-items-center rounded text-muted-foreground hover:bg-foreground/10 hover:text-foreground [&_svg]:size-3"
                       >
                         {t.dirty ? (
@@ -774,24 +777,24 @@ export function CodeView({ active, openRequest }) {
               </div>
               {activeTab && !activeTab.notice && !activeTab.image && !activeTab.pdf && !activeTab.xlsx && isEnvFile(activeTab.name) && (
                 <Button variant="ghost" size="sm" className="h-7 shrink-0 gap-1.5 text-muted-foreground" onClick={toggleEnvRaw}
-                  title={envRaw ? 'Voltar ao editor seguro (mascarado)' : 'Ver como texto puro'}>
-                  {envRaw ? <><KeyRound className="size-3.5" />Modo seguro</> : <><Eye className="size-3.5" />Ver como texto</>}
+                  title={envRaw ? t('code.env_raw_hide_tip') : t('code.env_raw_show_tip')}>
+                  {envRaw ? <><KeyRound className="size-3.5" />{t('code.env_raw_hide_btn')}</> : <><Eye className="size-3.5" />{t('code.env_raw_show_btn')}</>}
                 </Button>
               )}
               {activeTab && !activeTab.notice && !activeTab.image && !activeTab.pdf && !activeTab.xlsx && isMarkdown(activeTab.name) && (
                 <Button variant="ghost" size="sm" className="h-7 shrink-0 gap-1.5 text-muted-foreground" onClick={toggleMdEdit}
-                  title={mdPreview ? 'Editar o markdown' : 'Visualizar renderizado'}>
-                  {mdPreview ? <><Code2 className="size-3.5" />Editar</> : <><Eye className="size-3.5" />Visualizar</>}
+                  title={mdPreview ? t('code.md_toggle_edit') : t('code.md_toggle_preview')}>
+                  {mdPreview ? <><Code2 className="size-3.5" />{t('code.md_button_edit')}</> : <><Eye className="size-3.5" />{t('code.md_button_preview')}</>}
                 </Button>
               )}
               {activeTab && !activeTab.notice && !activeTab.image && !activeTab.pdf && !activeTab.xlsx && (
-                <Button variant="secondary" size="sm" className="mr-2 h-7 shrink-0" onClick={save} disabled={!activeTab.dirty} title="Salvar (Ctrl+S)">
-                  <Save className="mr-1" />Salvar
+                <Button variant="secondary" size="sm" className="mr-2 h-7 shrink-0" onClick={save} disabled={!activeTab.dirty} title={t('code.save_tooltip')}>
+                  <Save className="mr-1" />{t('code.save_button')}
                 </Button>
               )}
             </>
           ) : (
-            <span className="px-3 text-xs text-muted-foreground">Selecione um arquivo</span>
+            <span className="px-3 text-xs text-muted-foreground">{t('code.tabs_select_file')}</span>
           )}
         </div>
         <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -800,7 +803,7 @@ export function CodeView({ active, openRequest }) {
           ) : activeTab?.pdf ? (
             <PdfViewer src={activeTab.pdf} name={activeTab.name} />
           ) : activeTab?.xlsx ? (
-            <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">Carregando planilha…</div>}>
+            <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">{t('code.loading_spreadsheet')}</div>}>
               <XlsxViewer data={activeTab.xlsx} name={activeTab.name} />
             </Suspense>
           ) : activeTab?.notice ? (
@@ -808,7 +811,7 @@ export function CodeView({ active, openRequest }) {
           ) : mdPreview ? (
             <div className="absolute inset-0 overflow-y-auto px-8 py-6">
               <div className="mx-auto max-w-3xl">
-                <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando preview…</div>}>
+                <Suspense fallback={<div className="text-sm text-muted-foreground">{t('code.loading_preview')}</div>}>
                   <Markdown text={activeTab.content} />
                 </Suspense>
               </div>
@@ -829,32 +832,32 @@ export function CodeView({ active, openRequest }) {
               onChange={(v) => setTabs((cur) => cur.map((x) => (x.path === activePathRef.current ? { ...x, content: v, dirty: true } : x)))}
             />
           ) : (
-            <EmptyState>Selecione um arquivo na arvore.</EmptyState>
+            <EmptyState>{t('code.empty')}</EmptyState>
           )}
         </div>
       </div>
       {treeResizing && <div className="fixed inset-0 z-50 cursor-col-resize" />}
       <ConfirmDialog
         open={!!delItems?.length}
-        title="Mover para a Lixeira"
+        title={t('delete.confirm_title')}
         message={
           delItems?.length
             ? delItems.length === 1
-              ? `Tem certeza que deseja mover "${delItems[0].name}" para a Lixeira?`
-              : `Tem certeza que deseja mover ${delItems.length} itens para a Lixeira?`
+              ? t('delete.confirm_message_single', { name: delItems[0].name })
+              : t('delete.confirm_message_multiple', { count: delItems.length })
             : ''
         }
-        confirmLabel="Mover para a Lixeira"
-        cancelLabel="Cancelar"
+        confirmLabel={t('delete.confirm_button')}
+        cancelLabel={t('delete.confirm_cancel')}
         danger
         onConfirm={() => performDelete(delItems)}
         onCancel={() => setDelItems(null)}
       />
       <PromptDialog
         open={!!creating}
-        title={creating?.isDir ? 'Nova pasta' : 'Novo arquivo'}
-        placeholder={creating?.isDir ? 'nome-da-pasta' : 'nome-do-arquivo.txt'}
-        confirmLabel="Criar"
+        title={creating?.isDir ? t('create.folder_title') : t('create.file_title')}
+        placeholder={creating?.isDir ? t('create.folder_placeholder') : t('create.file_placeholder')}
+        confirmLabel={t('create.button')}
         onConfirm={performCreate}
         onCancel={() => setCreating(null)}
       />
@@ -888,6 +891,7 @@ function serializeEnv(rows) {
 // tudo de uma vez; edita chave/valor, adiciona e remove variáveis. Escreve de volta no
 // `content` da aba — o botão Salvar (Ctrl+S) do CodeView segue funcionando igual.
 function EnvEditor({ value, onChange }) {
+  const t = useT();
   const rows = parseEnv(value);
   const [revealed, setRevealed] = useState(() => new Set());
   const [revealAll, setRevealAll] = useState(false);
@@ -915,7 +919,7 @@ function EnvEditor({ value, onChange }) {
     <div className="absolute inset-0 flex flex-col bg-background">
       <div className="flex h-9 shrink-0 items-center gap-2 border-b bg-card px-3 text-xs text-muted-foreground">
         <KeyRound className="size-3.5" />
-        <span>Editor seguro de ambiente — valores mascarados</span>
+        <span>{t('env.editor_title')}</span>
         <div className="flex-1" />
         <button
           type="button"
@@ -923,14 +927,14 @@ function EnvEditor({ value, onChange }) {
           className="flex h-7 items-center gap-1.5 rounded px-2 transition-colors hover:bg-muted [&_svg]:size-3.5"
         >
           {revealAll ? <EyeOff /> : <Eye />}
-          {revealAll ? 'Ocultar tudo' : 'Revelar tudo'}
+          {revealAll ? t('env.hide_all') : t('env.reveal_all')}
         </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {kvCount === 0 ? (
           <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">
-            Nenhuma variável. Clique em “Adicionar variável”.
+            {t('env.empty')}
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">
@@ -958,7 +962,7 @@ function EnvEditor({ value, onChange }) {
                     <button
                       type="button"
                       onClick={() => toggle(i)}
-                      title={revealAll || revealed.has(i) ? 'Ocultar' : 'Revelar'}
+                      title={revealAll || revealed.has(i) ? t('env.toggle_hide') : t('env.toggle_reveal')}
                       className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground [&_svg]:size-3.5"
                     >
                       {revealAll || revealed.has(i) ? <EyeOff /> : <Eye />}
@@ -967,7 +971,7 @@ function EnvEditor({ value, onChange }) {
                   <button
                     type="button"
                     onClick={() => removeRow(i)}
-                    title="Remover variável"
+                    title={t('env.variable_remove')}
                     className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 [&_svg]:size-3.5"
                   >
                     <Trash2 />
@@ -983,7 +987,7 @@ function EnvEditor({ value, onChange }) {
           onClick={addRow}
           className="mt-3 flex h-8 items-center gap-1.5 rounded-md border border-dashed px-2.5 text-[13px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground [&_svg]:size-3.5"
         >
-          <Plus />Adicionar variável
+          <Plus />{t('env.variable_add')}
         </button>
       </div>
     </div>
@@ -992,16 +996,17 @@ function EnvEditor({ value, onChange }) {
 
 // Visualizador de imagem (SVG/PNG/GIF/JPG/WEBP) com zoom e arraste.
 function ImageViewer({ src, name }) {
+  const t = useT();
   return (
     <div className="absolute inset-0 flex flex-col">
       <TransformWrapper minScale={0.1} maxScale={20} centerOnInit doubleClick={{ mode: 'reset' }}>
         {({ zoomIn, zoomOut, resetTransform }) => (
           <>
             <div className="flex h-8 shrink-0 items-center gap-1 border-b bg-card px-2 text-xs text-muted-foreground">
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => zoomOut()} title="Diminuir"><ZoomOut /></Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => zoomIn()} title="Aumentar"><ZoomIn /></Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => resetTransform()} title="Ajustar à tela"><Maximize2 /></Button>
-              <span className="ml-1 truncate">role para zoom · arraste para mover · duplo-clique reseta</span>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => zoomOut()} title={t('image.zoom_out')}><ZoomOut /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => zoomIn()} title={t('image.zoom_in')}><ZoomIn /></Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => resetTransform()} title={t('image.fit')}><Maximize2 /></Button>
+              <span className="ml-1 truncate">{t('image.help')}</span>
             </div>
             <div className="ygc-checker relative min-h-0 flex-1">
               <TransformComponent
@@ -1041,6 +1046,7 @@ function Tree({ dirPath, depth }) {
 }
 
 function TreeNode({ item, depth }) {
+  const t = useT();
   const ctx = useContext(FileTreeCtx);
   const [open, setOpen] = useState(false);
   const [over, setOver] = useState(false);
@@ -1094,7 +1100,7 @@ function TreeNode({ item, depth }) {
           item.isDir ? setOpen((o) => !o) : ctx.onSelect(item);
         }}
         onContextMenu={(e) => { ctx.onContextNode(item); ctx.openMenu(e, item); }}
-        title={item.isLink ? `${item.name} — atalho (abre no Explorador de Arquivos)` : item.name}
+        title={item.isLink ? t('tree.link_title', { name: item.name }) : item.name}
       >
         {item.isLink ? (
           <Link2 className="h-3.5 w-3.5 shrink-0 text-primary" />
@@ -1158,6 +1164,7 @@ function MenuItem({ icon: Icon, label, onClick, danger, disabled }) {
 }
 
 function FileMenu({ menu, clip, actions, selItems, onClose }) {
+  const t = useT();
   const ref = useRef(null);
   useEffect(() => {
     if (!menu) return;
@@ -1186,25 +1193,25 @@ function FileMenu({ menu, clip, actions, selItems, onClose }) {
       {item.root ? (
         // Área em branco: criar na raiz do projeto, ou colar.
         <>
-          <MenuItem icon={FilePlus} label="Novo arquivo" onClick={run(actions.newFile)} />
-          <MenuItem icon={FolderPlus} label="Nova pasta" onClick={run(actions.newFolder)} />
+          <MenuItem icon={FilePlus} label={t('contextMenu.newFile')} onClick={run(actions.newFile)} />
+          <MenuItem icon={FolderPlus} label={t('contextMenu.newFolder')} onClick={run(actions.newFolder)} />
           <div className="my-1 border-t" />
-          <MenuItem icon={ClipboardPaste} label="Paste" disabled={!clip} onClick={run(actions.paste)} />
+          <MenuItem icon={ClipboardPaste} label={t('contextMenu.paste')} disabled={!clip} onClick={run(actions.paste)} />
         </>
       ) : (
         <>
-          <MenuItem icon={FilePlus} label="Novo arquivo" onClick={run(actions.newFile)} />
-          <MenuItem icon={FolderPlus} label="Nova pasta" onClick={run(actions.newFolder)} />
+          <MenuItem icon={FilePlus} label={t('contextMenu.newFile')} onClick={run(actions.newFile)} />
+          <MenuItem icon={FolderPlus} label={t('contextMenu.newFolder')} onClick={run(actions.newFolder)} />
           <div className="my-1 border-t" />
-          <MenuItem icon={ExternalLink} label="Reveal in File Explorer" onClick={run(actions.reveal)} />
+          <MenuItem icon={ExternalLink} label={t('contextMenu.reveal')} onClick={run(actions.reveal)} />
           <div className="my-1 border-t" />
-          <MenuItem icon={Scissors} label="Cut" onClick={run(actions.cut)} />
-          <MenuItem icon={Copy} label="Copy" onClick={run(actions.copy)} />
-          {clip && <MenuItem icon={ClipboardPaste} label="Paste" onClick={run(actions.paste)} />}
-          <MenuItem icon={Link2} label="Copy Path" onClick={run(actions.copyPath)} />
+          <MenuItem icon={Scissors} label={t('contextMenu.cut')} onClick={run(actions.cut)} />
+          <MenuItem icon={Copy} label={t('contextMenu.copy')} onClick={run(actions.copy)} />
+          {clip && <MenuItem icon={ClipboardPaste} label={t('contextMenu.paste')} onClick={run(actions.paste)} />}
+          <MenuItem icon={Link2} label={t('contextMenu.copyPath')} onClick={run(actions.copyPath)} />
           <div className="my-1 border-t" />
-          <MenuItem icon={Pencil} label="Rename" onClick={run(actions.rename)} />
-          <MenuItem icon={Trash2} label={delCount > 1 ? `Delete ${delCount} items` : 'Delete'} danger onClick={run(actions.del)} />
+          <MenuItem icon={Pencil} label={t('contextMenu.rename')} onClick={run(actions.rename)} />
+          <MenuItem icon={Trash2} label={t(delCount === 1 ? 'contextMenu.delete_single' : 'contextMenu.delete_multiple', { count: delCount })} danger onClick={run(actions.del)} />
         </>
       )}
     </div>

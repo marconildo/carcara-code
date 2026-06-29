@@ -119,6 +119,79 @@
   "chat": {
     "empty": "Click a project to open Claude Code here."
   },
+  "contextMenu": {
+    "newFile": "New file",
+    "newFolder": "New folder",
+    "paste": "Paste",
+    "reveal": "Reveal in File Explorer",
+    "cut": "Cut",
+    "copy": "Copy",
+    "copyPath": "Copy path",
+    "rename": "Rename",
+    "delete_single": "Delete",
+    "delete_multiple": "Delete {count} items"
+  },
+  "tree": {
+    "search_placeholder": "Search files…",
+    "search_clear": "Clear",
+    "no_results": "No files found.",
+    "empty": "Open a project.",
+    "link_title": "{name} — shortcut (opens in File Explorer)"
+  },
+  "code": {
+    "tabs_select_file": "Select a file",
+    "tabs_close": "Close",
+    "env_raw_show_tip": "View as plain text",
+    "env_raw_hide_tip": "Back to secure editor (masked)",
+    "env_raw_show_btn": "View as text",
+    "env_raw_hide_btn": "Secure mode",
+    "md_toggle_edit": "Edit the markdown",
+    "md_toggle_preview": "View rendered",
+    "md_button_edit": "Edit",
+    "md_button_preview": "Preview",
+    "save_button": "Save",
+    "save_tooltip": "Save (Ctrl+S)",
+    "loading_spreadsheet": "Loading spreadsheet…",
+    "loading_preview": "Loading preview…",
+    "empty": "Select a file from the tree.",
+    "binary_notice": "Binary file — not editable.",
+    "error_notice": "Error:"
+  },
+  "env": {
+    "editor_title": "Secure environment editor — values masked",
+    "reveal_all": "Reveal all",
+    "hide_all": "Hide all",
+    "empty": "No variables. Click \"Add variable\".",
+    "variable_remove": "Remove variable",
+    "variable_add": "Add variable",
+    "toggle_reveal": "Reveal",
+    "toggle_hide": "Hide"
+  },
+  "image": {
+    "zoom_out": "Zoom out",
+    "zoom_in": "Zoom in",
+    "fit": "Fit to screen",
+    "help": "scroll to zoom · drag to pan · double-click resets"
+  },
+  "delete": {
+    "confirm_title": "Move to Trash",
+    "confirm_message_single": "Are you sure you want to move \"{name}\" to Trash?",
+    "confirm_message_multiple": "Are you sure you want to move {count} items to Trash?",
+    "confirm_button": "Move to Trash",
+    "confirm_cancel": "Cancel"
+  },
+  "create": {
+    "file_title": "New file",
+    "folder_title": "New folder",
+    "file_placeholder": "filename.txt",
+    "folder_placeholder": "folder-name",
+    "button": "Create",
+    "cancel": "Cancel"
+  },
+  "dialog": {
+    "cancel": "Cancel",
+    "confirm": "OK"
+  },
   "settings": {
     "title": "Settings",
     "tabAi": "AI per project",

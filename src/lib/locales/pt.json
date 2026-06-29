@@ -119,6 +119,79 @@
   "chat": {
     "empty": "Clique num projeto pra abrir o Claude Code aqui."
   },
+  "contextMenu": {
+    "newFile": "Novo arquivo",
+    "newFolder": "Nova pasta",
+    "paste": "Colar",
+    "reveal": "Abrir no Explorador",
+    "cut": "Cortar",
+    "copy": "Copiar",
+    "copyPath": "Copiar caminho",
+    "rename": "Renomear",
+    "delete_single": "Excluir",
+    "delete_multiple": "Excluir {count} itens"
+  },
+  "tree": {
+    "search_placeholder": "Buscar arquivos…",
+    "search_clear": "Limpar",
+    "no_results": "Nenhum arquivo encontrado.",
+    "empty": "Abra um projeto.",
+    "link_title": "{name} — atalho (abre no Explorador de Arquivos)"
+  },
+  "code": {
+    "tabs_select_file": "Selecione um arquivo",
+    "tabs_close": "Fechar",
+    "env_raw_show_tip": "Ver como texto puro",
+    "env_raw_hide_tip": "Voltar ao editor seguro (mascarado)",
+    "env_raw_show_btn": "Ver como texto",
+    "env_raw_hide_btn": "Modo seguro",
+    "md_toggle_edit": "Editar o markdown",
+    "md_toggle_preview": "Visualizar renderizado",
+    "md_button_edit": "Editar",
+    "md_button_preview": "Visualizar",
+    "save_button": "Salvar",
+    "save_tooltip": "Salvar (Ctrl+S)",
+    "loading_spreadsheet": "Carregando planilha…",
+    "loading_preview": "Carregando preview…",
+    "empty": "Selecione um arquivo na árvore.",
+    "binary_notice": "Arquivo binário — não editável.",
+    "error_notice": "Erro:"
+  },
+  "env": {
+    "editor_title": "Editor seguro de ambiente — valores mascarados",
+    "reveal_all": "Revelar tudo",
+    "hide_all": "Ocultar tudo",
+    "empty": "Nenhuma variável. Clique em \"Adicionar variável\".",
+    "variable_remove": "Remover variável",
+    "variable_add": "Adicionar variável",
+    "toggle_reveal": "Revelar",
+    "toggle_hide": "Ocultar"
+  },
+  "image": {
+    "zoom_out": "Diminuir",
+    "zoom_in": "Aumentar",
+    "fit": "Ajustar à tela",
+    "help": "role para zoom · arraste para mover · duplo-clique reseta"
+  },
+  "delete": {
+    "confirm_title": "Mover para a Lixeira",
+    "confirm_message_single": "Tem certeza que deseja mover \"{name}\" para a Lixeira?",
+    "confirm_message_multiple": "Tem certeza que deseja mover {count} itens para a Lixeira?",
+    "confirm_button": "Mover para a Lixeira",
+    "confirm_cancel": "Cancelar"
+  },
+  "create": {
+    "file_title": "Novo arquivo",
+    "folder_title": "Nova pasta",
+    "file_placeholder": "nome-do-arquivo.txt",
+    "folder_placeholder": "nome-da-pasta",
+    "button": "Criar",
+    "cancel": "Cancelar"
+  },
+  "dialog": {
+    "cancel": "Cancelar",
+    "confirm": "OK"
+  },
   "settings": {
     "title": "Configurações",
     "tabAi": "IA por projeto",
