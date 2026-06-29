@@ -9,6 +9,11 @@ on:
     tags:
       - "v*"
 
+# Dá ao token do Actions permissão de escrita no repo, necessária para
+# o passo que cria a página de Release (sem isso, dá erro 403).
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
