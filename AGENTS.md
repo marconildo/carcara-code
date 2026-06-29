@@ -41,6 +41,54 @@ resultado na hora, sem se perder em configurações.
   terminal do Claude Code, limpe a variável `ELECTRON_RUN_AS_NODE` antes
   (`$env:ELECTRON_RUN_AS_NODE=$null; npm start`), senão o Electron roda como Node puro.
 
+## Idiomas (i18n) — PT-BR e Inglês
+
+O Carcará Code é **bilíngue**: o usuário escolhe o idioma na aba **Configurações →
+Idioma** e toda a interface troca na hora (`'pt'` ou `'en'`). O padrão na primeira
+execução segue o idioma do sistema.
+
+> **REGRA OBRIGATÓRIA:** **nenhum texto visível ao usuário pode ser escrito direto no
+> JSX.** Toda string de interface tem que passar pelo sistema de i18n e existir nos
+> **dois** idiomas. Se você adicionar um botão, tooltip, placeholder, título, mensagem
+> de confirmação, toast, estado vazio etc., adicione a chave em PT **e** EN. Texto em
+> um idioma só é um bug.
+
+### Como usar (renderer / React)
+
+1. No componente: `import { useT } from '@/lib/i18n';` e, dentro dele, `const t = useT();`
+2. Em vez de `<button>Salvar</button>`, escreva `<button>{t('area.salvar')}</button>`.
+3. Adicione a chave nos **dois** dicionários:
+   - `src/lib/locales/pt.json` → `"area": { "salvar": "Salvar" }`
+   - `src/lib/locales/en.json` → `"area": { "salvar": "Save" }`
+4. Texto com variável usa tokens `{nome}`: `t('area.ola', { nome })` e no JSON
+   `"ola": "Olá, {nome}"`.
+5. Fora de um componente (helpers, class components, arrays de escopo de módulo) não dá
+   pra chamar o hook — use `tStatic('area.chave')` (também de `@/lib/i18n`) ou guarde a
+   **chave** e resolva no ponto de render.
+
+### Strings nativas do Electron (processo main)
+
+Menus de contexto, diálogos e notificações ficam no `main.js` e **não** leem os JSON do
+renderer (o main é empacotado à parte). Suas strings vivem em **`main.i18n.cjs`** (raiz)
+e são resolvidas pela função `tn('chave', { vars })`. Ao mexer em texto nativo, atualize
+os dois idiomas nesse arquivo.
+
+### Antes de fechar qualquer tarefa que mexa em texto
+
+- Rode o smoke de paridade: **`node scripts/i18n-parity.smoke.cjs`** (ou `npm run
+  test:i18n`). Ele falha se uma chave existir num idioma e faltar no outro.
+- Lembre que edições em `src/` só aparecem após `npm run build`.
+
+### Tom da tradução
+
+PT-BR ao máximo (Cortar, Copiar, Renomear, Aparência…), mas **mantenha o jargão
+consagrado** (`Git`, `commit`, `MCP`, `API`, `Preview`, `terminal`, `DevTools`) e os
+**nomes próprios** (`Claude Code`, `Codex`, `OpenCode`, `Antigravity`, `GitHub`,
+`Carcará Code`) idênticos nos dois idiomas.
+
+> Detalhes completos: `docs/superpowers/specs/2026-06-29-i18n-idiomas-design.md` (design)
+> e `docs/superpowers/plans/2026-06-29-i18n-idiomas.md` (plano de implementação).
+
 ## Backup diário automático
 
 Este repositório está no GitHub (`origin`: https://github.com/Yg0rAndrade/carcara-code).
