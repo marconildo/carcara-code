@@ -17,6 +17,7 @@ import { McpInspectorDrawer } from './McpInspectorDrawer.jsx';
 import { McpServerRequestModal } from './McpServerRequestModal.jsx';
 import { useTheme } from '@/lib/theme.jsx';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 const editorTheme = EditorView.theme({
   '&': { fontSize: '13px', height: '100%' },
@@ -43,6 +44,7 @@ function pathsToRoots(paths) {
 }
 
 export function MCPPanel({ active }) {
+  const t = useT();
   const { theme } = useTheme();
   const cmTheme = theme === 'dark' ? vscodeDark : vscodeLight;
   const projectPath = active?.path || null;
@@ -308,26 +310,26 @@ export function MCPPanel({ active }) {
 
           {transport === 'stdio' ? (
             <>
-              <Input value={command} onChange={(e) => setCommand(e.target.value)} disabled={connected} placeholder="comando (ex: npx)" spellCheck={false} className="h-8 w-[120px] shrink-0 font-mono text-xs" />
-              <Input value={argsStr} onChange={(e) => setArgsStr(e.target.value)} disabled={connected} placeholder="args (ex: -y @servidor/mcp)" spellCheck={false} className="h-8 flex-1 font-mono text-xs" />
+              <Input value={command} onChange={(e) => setCommand(e.target.value)} disabled={connected} placeholder={t('mcp.panel.cmd_placeholder')} spellCheck={false} className="h-8 w-[120px] shrink-0 font-mono text-xs" />
+              <Input value={argsStr} onChange={(e) => setArgsStr(e.target.value)} disabled={connected} placeholder={t('mcp.panel.args_placeholder')} spellCheck={false} className="h-8 flex-1 font-mono text-xs" />
             </>
           ) : (
             <>
-              <Input value={url} onChange={(e) => setUrl(e.target.value)} disabled={connected} placeholder="https://servidor.com/mcp" spellCheck={false} className="h-8 flex-1 font-mono text-xs" />
-              <Input type="password" value={bearer} onChange={(e) => setBearer(e.target.value)} disabled={connected} placeholder="Bearer token (opcional)" spellCheck={false} autoComplete="off" className="h-8 w-[180px] shrink-0 font-mono text-xs" title="Enviado como header Authorization: Bearer …. Não é salvo em disco." />
+              <Input value={url} onChange={(e) => setUrl(e.target.value)} disabled={connected} placeholder={t('mcp.panel.url_placeholder')} spellCheck={false} className="h-8 flex-1 font-mono text-xs" />
+              <Input type="password" value={bearer} onChange={(e) => setBearer(e.target.value)} disabled={connected} placeholder={t('mcp.panel.bearer_placeholder')} spellCheck={false} autoComplete="off" className="h-8 w-[180px] shrink-0 font-mono text-xs" title={t('mcp.panel.bearer_title')} />
             </>
           )}
 
-          <Button variant="secondary" size="sm" className="h-8" onClick={onSaveClick} disabled={!projectPath} title={currentName ? `Salvar "${currentName}"` : 'Salvar servidor'}>
-            <Save className="mr-1" />Salvar
+          <Button variant="secondary" size="sm" className="h-8" onClick={onSaveClick} disabled={!projectPath} title={t(currentName ? 'mcp.panel.save_btn_title' : 'mcp.panel.save_btn_default_title', { name: currentName })}>
+            <Save className="mr-1" />{t('mcp.panel.save_btn')}
           </Button>
           {connected ? (
             <Button variant="secondary" size="sm" className="h-8" onClick={disconnect}>
-              <Plug className="mr-1" />Desconectar
+              <Plug className="mr-1" />{t('mcp.panel.disconnect_btn')}
             </Button>
           ) : (
             <Button size="sm" className="h-8" onClick={connect} disabled={status === 'connecting'}>
-              {status === 'connecting' ? <Loader2 className="mr-1 animate-spin" /> : <HoverIcon as={ConnectIcon} className="mr-1" />}Conectar
+              {status === 'connecting' ? <Loader2 className="mr-1 animate-spin" /> : <HoverIcon as={ConnectIcon} className="mr-1" />}{t('mcp.panel.connect_btn')}
             </Button>
           )}
         </div>
@@ -335,13 +337,13 @@ export function MCPPanel({ active }) {
         {/* Dica OAuth: HTTP sem token conecta via login no navegador */}
         {transport === 'http' && !connected && !bearer.trim() && (
           <div className="flex shrink-0 items-center gap-2 border-b bg-muted/30 px-3 py-1.5 text-[11px] text-muted-foreground">
-            <span>Sem token → <span className="text-foreground">Conectar</span> abre o login no navegador (OAuth).</span>
+            <span>{t('mcp.panel.no_token_oauth_hint')}</span>
             <div className="flex-1" />
             <button type="button"
               onClick={async () => { const r = await window.api.mcpOauthLogout(normalizeUrl(url)); setErr(r.ok ? null : (r.error || null)); }}
               disabled={!url.trim()}
               className="rounded px-1.5 py-0.5 hover:bg-muted hover:text-foreground disabled:opacity-40">
-              Esquecer login
+              {t('mcp.panel.forget_login')}
             </button>
           </div>
         )}
@@ -352,19 +354,19 @@ export function MCPPanel({ active }) {
             <button type="button" onClick={() => setAdvOpen((o) => !o)}
               className="flex items-center gap-1 px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground">
               {advOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-              Avançado{(envVars.length > 0 || timeoutMs) ? <span className="ml-1 text-primary">•</span> : null}
+              {t('mcp.panel.advanced')}{(envVars.length > 0 || timeoutMs) ? <span className="ml-1 text-primary">•</span> : null}
             </button>
             {advOpen && (
               <div className="space-y-2.5 px-3 pb-2.5">
                 {transport === 'stdio' && (
                   <div>
-                    <div className="eyebrow mb-1">Variáveis de ambiente</div>
+                    <div className="eyebrow mb-1">{t('mcp.panel.env_vars_label')}</div>
                     {envVars.map((row, i) => (
                       <div key={i} className="mb-1 flex items-center gap-1.5">
-                        <Input placeholder="CHAVE" value={row.key} spellCheck={false}
+                        <Input placeholder={t('mcp.panel.env_key_placeholder')} value={row.key} spellCheck={false}
                           onChange={(e) => setEnvVars((a) => a.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))}
                           className="h-7 w-[40%] font-mono text-xs" />
-                        <Input placeholder="valor" value={row.val} spellCheck={false} autoComplete="off"
+                        <Input placeholder={t('mcp.panel.env_value_placeholder')} value={row.val} spellCheck={false} autoComplete="off"
                           onChange={(e) => setEnvVars((a) => a.map((x, j) => (j === i ? { ...x, val: e.target.value } : x)))}
                           className="h-7 flex-1 font-mono text-xs" />
                         <button type="button" onClick={() => setEnvVars((a) => a.filter((_, j) => j !== i))}
@@ -374,19 +376,19 @@ export function MCPPanel({ active }) {
                       </div>
                     ))}
                     <button type="button" onClick={() => setEnvVars((a) => [...a, { key: '', val: '' }])}
-                      className="text-[11px] text-muted-foreground hover:text-foreground">+ adicionar variável</button>
+                      className="text-[11px] text-muted-foreground hover:text-foreground">{t('mcp.panel.add_env_var')}</button>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">Timeout de request (ms):</span>
+                  <span className="text-[11px] text-muted-foreground">{t('mcp.panel.timeout_label')}</span>
                   <Input type="number" value={timeoutMs} onChange={(e) => setTimeoutMs(e.target.value)}
-                    placeholder="padrão 60000" className="h-7 w-[130px] text-xs" />
+                    placeholder={t('mcp.panel.timeout_placeholder')} className="h-7 w-[130px] text-xs" />
                 </div>
                 <div>
-                  <div className="eyebrow mb-1">Roots (pastas expostas ao servidor)</div>
+                  <div className="eyebrow mb-1">{t('mcp.panel.roots_label')}</div>
                   {rootPaths.map((p, i) => (
                     <div key={i} className="mb-1 flex items-center gap-1.5">
-                      <Input placeholder="C:\\caminho\\pasta ou file:///…" value={p} spellCheck={false}
+                      <Input placeholder={t('mcp.panel.root_path_placeholder')} value={p} spellCheck={false}
                         onChange={(e) => setRootPaths((a) => a.map((x, j) => (j === i ? e.target.value : x)))}
                         className="h-7 flex-1 font-mono text-xs" />
                       <button type="button" onClick={() => setRootPaths((a) => a.filter((_, j) => j !== i))}
@@ -396,7 +398,7 @@ export function MCPPanel({ active }) {
                     </div>
                   ))}
                   <button type="button" onClick={() => setRootPaths((a) => [...a, projectPath || ''])}
-                    className="text-[11px] text-muted-foreground hover:text-foreground">+ adicionar pasta</button>
+                    className="text-[11px] text-muted-foreground hover:text-foreground">{t('mcp.panel.add_root_path')}</button>
                 </div>
               </div>
             )}
@@ -406,12 +408,12 @@ export function MCPPanel({ active }) {
         {/* Nome (ao salvar) */}
         {naming && (
           <div className="flex shrink-0 items-center gap-2 border-b bg-muted/40 px-2.5 py-2">
-            <span className="text-xs text-muted-foreground">Nome:</span>
+            <span className="text-xs text-muted-foreground">{t('mcp.panel.name_label')}</span>
             <Input autoFocus value={nameDraft} onChange={(e) => setNameDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && nameDraft.trim()) doSave(nameDraft.trim()); else if (e.key === 'Escape') { setNaming(false); setNameDraft(''); } }}
-              placeholder="ex: everything" className="h-7 max-w-[260px] text-xs" />
-            <Button size="sm" className="h-7" onClick={() => nameDraft.trim() && doSave(nameDraft.trim())} disabled={!nameDraft.trim()}>Salvar</Button>
-            <Button variant="ghost" size="sm" className="h-7" onClick={() => { setNaming(false); setNameDraft(''); }}>Cancelar</Button>
+              placeholder={t('mcp.panel.name_placeholder')} className="h-7 max-w-[260px] text-xs" />
+            <Button size="sm" className="h-7" onClick={() => nameDraft.trim() && doSave(nameDraft.trim())} disabled={!nameDraft.trim()}>{t('mcp.panel.save_name_btn')}</Button>
+            <Button variant="ghost" size="sm" className="h-7" onClick={() => { setNaming(false); setNameDraft(''); }}>{t('mcp.panel.cancel_btn')}</Button>
           </div>
         )}
 
@@ -424,9 +426,9 @@ export function MCPPanel({ active }) {
               <span className="text-muted-foreground"> v{serverInfo.version} · {Object.keys(caps).join(', ')}</span>
             </span>
           ) : status === 'error' ? (
-            <span className="truncate text-red-500">{err || 'Falha ao conectar.'}</span>
+            <span className="truncate text-red-500">{err || t('mcp.panel.failed_to_connect')}</span>
           ) : (
-            <span className="text-muted-foreground">{status === 'connecting' ? (oauthPhase === 'awaiting' ? 'Aguardando autorização no navegador…' : 'Conectando…') : 'Desconectado'}</span>
+            <span className="text-muted-foreground">{status === 'connecting' ? (oauthPhase === 'awaiting' ? t('mcp.panel.awaiting_auth') : t('mcp.panel.connecting')) : t('mcp.panel.disconnected')}</span>
           )}
           <div className="flex-1" />
           {/* Quando conectado, o stderr vive na aba Logging do Inspector. Aqui só p/ falha de conexão. */}
@@ -467,7 +469,7 @@ export function MCPPanel({ active }) {
                         title={it.description || itemKey(it)}>
                         <span className="flex items-center gap-1">
                           <span className="flex-1 truncate font-medium">{it.name || it.uri || it.uriTemplate}</span>
-                          {it.uri && subscribed.has(it.uri) && <span className="size-1.5 shrink-0 rounded-full bg-primary" title="assinado" />}
+                          {it.uri && subscribed.has(it.uri) && <span className="size-1.5 shrink-0 rounded-full bg-primary" title={t('mcp.panel.subscribed')} />}
                         </span>
                         {it.description && <span className="block truncate text-[11px] text-muted-foreground">{it.description}</span>}
                       </button>
@@ -475,17 +477,17 @@ export function MCPPanel({ active }) {
                   };
                   if (tab === 'resources') {
                     const res = resources || [], tpl = templates || [];
-                    if (!res.length && !tpl.length) return <p className="px-3 py-2 text-[11px] text-muted-foreground">Nada aqui.</p>;
+                    if (!res.length && !tpl.length) return <p className="px-3 py-2 text-[11px] text-muted-foreground">{t('mcp.panel.nothing_here')}</p>;
                     return (
                       <>
                         {res.map(renderBtn)}
-                        {tpl.length > 0 && <div className="eyebrow px-3 pb-1 pt-2">Templates</div>}
+                        {tpl.length > 0 && <div className="eyebrow px-3 pb-1 pt-2">{t('mcp.panel.templates')}</div>}
                         {tpl.map(renderBtn)}
                       </>
                     );
                   }
                   return list.length === 0
-                    ? <p className="px-3 py-2 text-[11px] text-muted-foreground">Nada aqui.</p>
+                    ? <p className="px-3 py-2 text-[11px] text-muted-foreground">{t('mcp.panel.nothing_here')}</p>
                     : list.map(renderBtn);
                 })()}
               </div>
@@ -493,13 +495,13 @@ export function MCPPanel({ active }) {
               {/* Detalhe */}
               <div className="flex min-w-0 flex-1 flex-col overflow-auto p-3">
                 {!selected ? (
-                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Selecione um item à esquerda.</div>
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{t('mcp.panel.select_item')}</div>
                 ) : tab === 'tools' ? (
                   <>
                     <McpToolForm schema={selected.inputSchema} value={formArgs} onChange={setFormArgs} />
                     <div className="mt-3">
                       <Button size="sm" className="h-8" onClick={invokeTool} disabled={running}>
-                        {running ? <Loader2 className="mr-1 animate-spin" /> : <Play className="mr-1" />}Invocar
+                        {running ? <Loader2 className="mr-1 animate-spin" /> : <Play className="mr-1" />}{t('mcp.panel.invoke_btn')}
                       </Button>
                     </div>
                   </>
@@ -509,7 +511,7 @@ export function MCPPanel({ active }) {
                       onComplete={caps.completions ? completeArg({ type: 'ref/prompt', name: selected.name }) : undefined} />
                     <div className="mt-3">
                       <Button size="sm" className="h-8" onClick={getPrompt} disabled={running}>
-                        {running ? <Loader2 className="mr-1 animate-spin" /> : <Play className="mr-1" />}Obter
+                        {running ? <Loader2 className="mr-1 animate-spin" /> : <Play className="mr-1" />}{t('mcp.panel.get_prompt_btn')}
                       </Button>
                     </div>
                   </>
@@ -517,7 +519,7 @@ export function MCPPanel({ active }) {
                   <>
                     <div className="mb-2 break-all font-mono text-[11px] text-muted-foreground">{selected.uriTemplate}</div>
                     {templateVarNames(selected).length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Template sem variáveis.</p>
+                      <p className="text-xs text-muted-foreground">{t('mcp.panel.no_template_vars')}</p>
                     ) : (
                       <div className="space-y-2">
                         {templateVarNames(selected).map((n) => {
@@ -542,7 +544,7 @@ export function MCPPanel({ active }) {
                     )}
                     <div className="mt-3">
                       <Button size="sm" className="h-8" onClick={() => readResource(expandTemplate(selected, tmplVars))} disabled={running}>
-                        {running ? <Loader2 className="mr-1 animate-spin" /> : <Play className="mr-1" />}Ler
+                        {running ? <Loader2 className="mr-1 animate-spin" /> : <Play className="mr-1" />}{t('mcp.panel.read_btn')}
                       </Button>
                     </div>
                   </>
@@ -551,7 +553,7 @@ export function MCPPanel({ active }) {
                     <div className="mb-2 break-all font-mono text-[11px] text-muted-foreground">{selected.uri}</div>
                     {caps.resources?.subscribe && (
                       <Button variant={subscribed.has(selected.uri) ? 'secondary' : 'outline'} size="sm" className="h-8" onClick={() => toggleSubscribe(selected.uri)}>
-                        {subscribed.has(selected.uri) ? 'Cancelar assinatura' : 'Assinar atualizações'}
+                        {subscribed.has(selected.uri) ? t('mcp.panel.unsubscribe_btn') : t('mcp.panel.subscribe_btn')}
                       </Button>
                     )}
                   </>
@@ -560,7 +562,7 @@ export function MCPPanel({ active }) {
                 {(result || err) && (
                   <div className="mt-3 min-h-[120px] flex-1 overflow-hidden rounded-md border">
                     <div className={cn('flex h-7 items-center border-b px-2.5 text-[11px] font-semibold', result?.isError ? 'text-red-500' : 'text-muted-foreground')}>
-                      {err ? 'ERRO' : result?.isError ? 'RESULTADO (isError)' : 'RESULTADO'}
+                      {err ? t('mcp.panel.result_error') : result?.isError ? t('mcp.panel.result_is_error') : t('mcp.panel.result')}
                     </div>
                     {err ? (
                       <div className="p-3 text-sm text-red-500">{err}</div>
@@ -573,7 +575,7 @@ export function MCPPanel({ active }) {
             </div>
           </div>
         ) : (
-          <EmptyState>Conecte a um servidor MCP para inspecionar tools, resources e prompts.</EmptyState>
+          <EmptyState>{t('mcp.panel.empty_connect')}</EmptyState>
         )}
 
         {/* Inspector (Bloco C): history JSON-RPC, logging, progress, ping */}
@@ -599,22 +601,22 @@ export function MCPPanel({ active }) {
       <div style={{ width: sidebarWidth }} className="flex shrink-0 flex-col bg-card">
         <div className="flex h-12 shrink-0 items-center gap-1.5 border-b px-3">
           <Server className="size-3.5 text-primary" />
-          <span className="eyebrow flex-1 truncate">Servers</span>
-          <button type="button" onClick={() => { setCurrentName(null); }} title="Novo (limpar nome)" className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground [&_svg]:size-[14px]">
+          <span className="eyebrow flex-1 truncate">{t('mcp.panel.servers')}</span>
+          <button type="button" onClick={() => { setCurrentName(null); }} title={t('mcp.panel.new_server')} className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground [&_svg]:size-[14px]">
             <Plus />
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto py-1">
           {!projectPath ? (
-            <p className="px-2.5 py-2 text-[11px] leading-relaxed text-muted-foreground">Abra um projeto para salvar servidores.</p>
+            <p className="px-2.5 py-2 text-[11px] leading-relaxed text-muted-foreground">{t('mcp.panel.open_project_to_save')}</p>
           ) : Object.keys(servers).length === 0 ? (
-            <p className="px-2.5 py-2 text-[11px] leading-relaxed text-muted-foreground">Nenhum servidor salvo ainda.</p>
+            <p className="px-2.5 py-2 text-[11px] leading-relaxed text-muted-foreground">{t('mcp.panel.no_servers_saved')}</p>
           ) : (
             Object.keys(servers).sort().map((name) => (
               <div key={name} onClick={() => loadServer(name)} title={name}
                 className={cn('group flex cursor-pointer items-center gap-1.5 px-2.5 py-1 text-[13px] hover:bg-muted', currentName === name && 'bg-accent')}>
                 <span className="flex-1 truncate">{name}</span>
-                <button type="button" onClick={(e) => deleteServer(name, e)} title="Excluir" className="grid h-5 w-5 shrink-0 place-items-center rounded text-muted-foreground opacity-0 hover:bg-background hover:text-red-500 group-hover:opacity-100 [&_svg]:size-[13px]">
+                <button type="button" onClick={(e) => deleteServer(name, e)} title={t('mcp.panel.delete_server_title')} className="grid h-5 w-5 shrink-0 place-items-center rounded text-muted-foreground opacity-0 hover:bg-background hover:text-red-500 group-hover:opacity-100 [&_svg]:size-[13px]">
                   <Trash2 />
                 </button>
               </div>

@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Button } from './ui/button.jsx';
 import { ResizeBar } from './ui/resize-bar.jsx';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 const LOG_LEVELS = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
 
@@ -50,6 +51,7 @@ const pretty = (v) => { try { return JSON.stringify(v, null, 2); } catch { retur
 
 // Linha expansível com o JSON cru. Usa <pre> (leve) em vez de editor por linha.
 function JsonRow({ children, title, payload, defaultOpen = false }) {
+  const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const str = useMemo(() => pretty(payload), [payload]);
   const big = str.length > MAX_INLINE;
@@ -63,7 +65,7 @@ function JsonRow({ children, title, payload, defaultOpen = false }) {
       {open && (
         big && !forced ? (
           <button type="button" onClick={() => setForced(true)} className="mt-1 text-[11px] italic text-muted-foreground hover:text-foreground">
-            payload grande ({Math.round(str.length / 1024)}KB) — clique para renderizar
+            {t('mcp.inspector.payload_large', { size: Math.round(str.length / 1024) })}
           </button>
         ) : (
           <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded bg-background px-2 py-1.5 font-mono text-[11px] leading-relaxed text-foreground">{str}</pre>
@@ -78,6 +80,7 @@ export function McpInspectorDrawer({
   traffic, truncated, onClear,
   stderr, caps, onPing, onSetLevel,
 }) {
+  const t = useT();
   const [tab, setTab] = useState('history');
   const [filter, setFilter] = useState('all'); // all | request | response | notification
   const [level, setLevel] = useState('');
@@ -132,8 +135,8 @@ export function McpInspectorDrawer({
         <button type="button" onClick={onToggle} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
           <ChevronUp className="size-3.5" />Inspector
         </button>
-        <span className="text-[11px] text-muted-foreground">{traffic.length} msgs</span>
-        {truncated > 0 && <span className="text-[11px] text-amber-500">+{truncated} truncadas</span>}
+        <span className="text-[11px] text-muted-foreground">{traffic.length} {t('mcp.inspector.msgs')}</span>
+        {truncated > 0 && <span className="text-[11px] text-amber-500">+{truncated} {t('mcp.inspector.truncated')}</span>}
       </div>
     );
   }
@@ -159,7 +162,7 @@ export function McpInspectorDrawer({
           <Button variant="secondary" size="sm" className="h-6 px-2 text-[11px]" onClick={doPing} disabled={pinging}>
             {pinging ? <Loader2 className="mr-1 animate-spin" /> : <Radio className="mr-1" />}Ping
           </Button>
-          <span className="text-[11px] text-muted-foreground">{traffic.length}{truncated > 0 && <span className="text-amber-500"> +{truncated}</span>}</span>
+          <span className="text-[11px] text-muted-foreground">{traffic.length} {t('mcp.inspector.msgs')}{truncated > 0 && <span className="text-amber-500"> +{truncated}</span>}</span>
         </div>
 
         {/* Corpo */}
@@ -176,11 +179,11 @@ export function McpInspectorDrawer({
                 <div className="flex-1" />
                 <button type="button" onClick={onClear} disabled={!traffic.length}
                   className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted disabled:opacity-40">
-                  <Trash2 className="size-3" />Limpar
+                  <Trash2 className="size-3" />{t('mcp.inspector.clear')}
                 </button>
               </div>
               {history.length === 0 ? (
-                <p className="px-1 py-2 text-[11px] text-muted-foreground">Sem tráfego ainda.</p>
+                <p className="px-1 py-2 text-[11px] text-muted-foreground">{t('mcp.inspector.no_traffic')}</p>
               ) : (
                 <ul className="space-y-1">
                   {history.slice().reverse().map((r) => {
@@ -203,17 +206,17 @@ export function McpInspectorDrawer({
           ) : tab === 'logging' ? (
             <>
               <div className="mb-2 flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">Nível:</span>
+                <span className="text-[11px] text-muted-foreground">{t('mcp.inspector.level_label')}</span>
                 <Select value={level} onValueChange={doSetLevel} disabled={!caps?.logging}>
                   <SelectTrigger className="h-6 w-[120px] text-[11px]"><SelectValue placeholder="setLevel…" /></SelectTrigger>
                   <SelectContent>
                     {LOG_LEVELS.map((l) => <SelectItem key={l} value={l} className="text-[11px]">{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {!caps?.logging && <span className="text-[11px] text-muted-foreground">servidor não anuncia logging</span>}
+                {!caps?.logging && <span className="text-[11px] text-muted-foreground">{t('mcp.inspector.server_no_logging')}</span>}
               </div>
               {logs.length === 0 && !stderr ? (
-                <p className="px-1 py-2 text-[11px] text-muted-foreground">Sem logs ainda.</p>
+                <p className="px-1 py-2 text-[11px] text-muted-foreground">{t('mcp.inspector.no_logs')}</p>
               ) : (
                 <ul className="space-y-1">
                   {logs.slice().reverse().map((e) => {
@@ -239,7 +242,7 @@ export function McpInspectorDrawer({
             </>
           ) : (
             progress.length === 0 ? (
-              <p className="px-1 py-2 text-[11px] text-muted-foreground">Nenhuma operação com progresso.</p>
+              <p className="px-1 py-2 text-[11px] text-muted-foreground">{t('mcp.inspector.no_progress')}</p>
             ) : (
               <ul className="space-y-2">
                 {progress.map(([token, p]) => {

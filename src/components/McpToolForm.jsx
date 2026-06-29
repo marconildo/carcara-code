@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Input } from './ui/input.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select.jsx';
+import { useT } from '@/lib/i18n';
 
 // Gera campos a partir do inputSchema (JSON Schema) de uma tool MCP.
 // Suporta como campo: string, number/integer, boolean, enum.
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 // onComplete(argName, value) => Promise<string[]>: se passado, campos string ganham
 // autocomplete (datalist) — usado p/ prompts e resource templates (Bloco A). Opcional.
 export function McpToolForm({ schema, value, onChange, onComplete }) {
+  const t = useT();
   const props = (schema && schema.properties) || {};
   const required = (schema && schema.required) || [];
   const names = Object.keys(props);
@@ -20,7 +22,7 @@ export function McpToolForm({ schema, value, onChange, onComplete }) {
   };
 
   if (!names.length) {
-    return <p className="text-xs text-muted-foreground">Esta tool não recebe argumentos.</p>;
+    return <p className="text-xs text-muted-foreground">{t('mcp.form.no_args')}</p>;
   }
 
   return (
@@ -41,7 +43,7 @@ export function McpToolForm({ schema, value, onChange, onComplete }) {
             <div key={k}>
               {label}
               <Select value={value[k] ?? ''} onValueChange={(v) => set(k, v)}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t('mcp.form.select_placeholder')} /></SelectTrigger>
                 <SelectContent>
                   {p.enum.map((o) => <SelectItem key={String(o)} value={String(o)} className="text-xs">{String(o)}</SelectItem>)}
                 </SelectContent>
