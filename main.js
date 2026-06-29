@@ -214,6 +214,11 @@ ipcMain.on('devtools:undock', (_e, { previewId }) => {
 // ---------- Config / projetos ----------
 ipcMain.handle('config:get', () => loadConfig());
 
+// Tela de preparo do 1º uso: a flag mora no config.json (userData), não no localStorage —
+// o localStorage do renderer pode ser limpo (cache/origin) e a tela voltava a cada abertura.
+ipcMain.handle('setup:isDone', () => !!loadConfig().setupDone);
+ipcMain.handle('setup:markDone', () => { const c = loadConfig(); c.setupDone = true; saveConfig(c); return { ok: true }; });
+
 // ---------- CLI de IA (Claude Code / OpenCode / Antigravity / custom) ----------
 const AI_CLIS = { claude: 'claude', opencode: 'opencode', agy: 'agy', codex: 'codex' };
 
@@ -481,7 +486,16 @@ ipcMain.handle('fs:dir', (evt, { dirPath }) => {
   try { ents = fs.readdirSync(dirPath, { withFileTypes: true }); } catch { return []; }
   return ents
     .filter((en) => !(en.isDirectory() && IGNORE_DIRS.has(en.name)))
-    .map((en) => ({ name: en.name, path: path.join(dirPath, en.name), isDir: en.isDirectory() }))
+    .map((en) => {
+      const p = path.join(dirPath, en.name);
+      // Link simbólico/junction: o Dirent reporta isDirectory()=false. Resolve o alvo
+      // (seguindo o link) só pra saber se aponta pra pasta — e marca isLink pra UI deixar
+      // claro e abrir no Explorador em vez de tentar expandir/abrir como arquivo.
+      const isLink = en.isSymbolicLink();
+      let isDir = en.isDirectory();
+      if (isLink) { try { isDir = fs.statSync(p).isDirectory(); } catch { isDir = false; } }
+      return { name: en.name, path: p, isDir, isLink };
+    })
     .sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1));
 });
 

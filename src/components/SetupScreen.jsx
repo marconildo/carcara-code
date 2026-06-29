@@ -1,36 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, Download, RefreshCw, GitBranch, Hexagon, Loader2 } from 'lucide-react';
-import { ClaudeCodeIcon } from '@/lib/cliIcons.jsx';
 import { Button } from './ui/button.jsx';
 
-// Ferramentas externas que o Carcará usa. O app abre sem elas (o Electron traz o
-// próprio runtime), e a gente só guia a instalação — sem instalar nada escondido,
-// sem pedir admin. Ordem por importância: Claude é o coração; Git ajuda; Node é extra.
+// Ferramentas externas que o Carcará usa. O app abre sem elas (o Electron traz o próprio
+// runtime) e a gente só guia a instalação — sem instalar nada escondido, sem pedir admin.
+// Nota: o CLI de IA (Claude Code, Codex, OpenCode, Antigravity…) NÃO entra aqui — cada um
+// instala o seu, e nem todo mundo usa o Claude. Aqui ficam só as dependências comuns a todos.
 const LEVELS = {
   essential: { label: 'Essencial', cls: 'bg-primary/10 text-primary' },
   recommended: { label: 'Recomendado', cls: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  optional: { label: 'Opcional', cls: 'bg-muted text-muted-foreground' },
 };
 
-const TOOLS = [
-  {
-    key: 'claude',
-    name: 'Claude Code',
-    Icon: ClaudeCodeIcon,
-    brandIcon: true,
-    level: 'essential',
-    desc: 'A IA que conversa no terminal — o coração do Carcará. Instalação nativa, não precisa de Node.',
-    note: 'No PowerShell, dá pra instalar com uma linha:  irm https://claude.ai/install.ps1 | iex',
-    url: 'https://code.claude.com/docs/en/setup',
-  },
-  {
-    key: 'git',
-    name: 'Git',
-    Icon: GitBranch,
-    level: 'recommended',
-    desc: 'Usado pela aba Git (commits, branches, GitHub) e pela ferramenta Bash do Claude. Sem ele, o Claude cai no PowerShell.',
-    url: 'https://git-scm.com/download/win',
-  },
+export const DEPENDENCIES = [
   {
     key: 'node',
     name: 'Node.js',
@@ -39,6 +20,14 @@ const TOOLS = [
     desc: 'Faz o Preview funcionar — ver o projeto rodando ao vivo é o coração do Carcará. Sem Node, sem Preview.',
     note: 'Baixe a versão LTS.',
     url: 'https://nodejs.org/en/download',
+  },
+  {
+    key: 'git',
+    name: 'Git',
+    Icon: GitBranch,
+    level: 'recommended',
+    desc: 'Usado pela aba Git (commits, branches, GitHub) e pela ferramenta Bash do Claude. Sem ele, o Claude cai no PowerShell.',
+    url: 'https://git-scm.com/download/win',
   },
 ];
 
@@ -64,7 +53,9 @@ function StatusPill({ state }) {
   );
 }
 
-export function SetupScreen({ open, onClose }) {
+// Hook compartilhado: detecta as ferramentas (sem cache) quando 'active' liga, e diz se as
+// essenciais estão prontas. Usado pela tela de preparo (1º uso) e pela aba Dependências.
+export function useDependencyStatus(active) {
   const [status, setStatus] = useState(null); // { git, node, npm, claude } | null
   const [loading, setLoading] = useState(false);
 
@@ -77,12 +68,58 @@ export function SetupScreen({ open, onClose }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { if (open) check(); }, [open, check]);
+  useEffect(() => { if (active) check(); }, [active, check]);
+
+  const essentialsReady = !!status && DEPENDENCIES
+    .filter((t) => t.level === 'essential')
+    .every((t) => status[t.key]);
+
+  return { status, loading, check, essentialsReady };
+}
+
+// Lista visual dos cartões de dependência (compartilhada pela tela de preparo e pelas Configurações).
+export function DependencyCards({ status, loading }) {
+  const stateOf = (key) => (loading && !status ? 'loading' : status ? !!status[key] : false);
+  return (
+    <div className="flex flex-col gap-3">
+      {DEPENDENCIES.map((t) => {
+        const st = stateOf(t.key);
+        const installed = st === true;
+        const lvl = LEVELS[t.level];
+        return (
+          <div key={t.key}
+            className={'flex items-start gap-3.5 rounded-xl border p-4 transition-colors ' + (installed ? 'border-emerald-500/30 bg-emerald-500/[0.03]' : '')}>
+            <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
+              <t.Icon className="size-[18px]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[15px] font-medium">{t.name}</span>
+                <span className={'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ' + lvl.cls}>{lvl.label}</span>
+                <StatusPill state={st} />
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t.desc}</p>
+              {t.note && !installed && (
+                <p className="mt-1.5 rounded-md bg-muted/60 px-2 py-1 font-mono text-[11px] leading-relaxed text-foreground/80">{t.note}</p>
+              )}
+            </div>
+            {!installed && (
+              <Button size="sm" variant="secondary" className="shrink-0 gap-1.5"
+                onClick={() => window.api.openExternal(t.url)}>
+                <Download className="size-3.5" /> Instalar
+              </Button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function SetupScreen({ open, onClose }) {
+  const { status, loading, check, essentialsReady } = useDependencyStatus(open);
 
   if (!open) return null;
-
-  const stateOf = (key) => (loading && !status ? 'loading' : status ? !!status[key] : false);
-  const essentialsReady = status && status.claude && status.node; // Claude + Node (Preview)
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-background">
@@ -94,37 +131,8 @@ export function SetupScreen({ open, onClose }) {
           computador. Confira o que já está pronto e instale o que faltar — é uma vez só.
         </p>
 
-        <div className="mt-7 flex flex-col gap-3">
-          {TOOLS.map((t) => {
-            const st = stateOf(t.key);
-            const installed = st === true;
-            const lvl = LEVELS[t.level];
-            return (
-              <div key={t.key}
-                className={'flex items-start gap-3.5 rounded-xl border p-4 transition-colors ' + (installed ? 'border-emerald-500/30 bg-emerald-500/[0.03]' : '')}>
-                <span className={'mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg ' + (t.brandIcon ? '' : 'bg-muted text-foreground')}>
-                  {t.brandIcon ? <t.Icon className="size-9 rounded-lg" /> : <t.Icon className="size-[18px]" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[15px] font-medium">{t.name}</span>
-                    <span className={'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ' + lvl.cls}>{lvl.label}</span>
-                    <StatusPill state={st} />
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t.desc}</p>
-                  {t.note && !installed && (
-                    <p className="mt-1.5 rounded-md bg-muted/60 px-2 py-1 font-mono text-[11px] leading-relaxed text-foreground/80">{t.note}</p>
-                  )}
-                </div>
-                {!installed && (
-                  <Button size="sm" variant="secondary" className="shrink-0 gap-1.5"
-                    onClick={() => window.api.openExternal(t.url)}>
-                    <Download className="size-3.5" /> Instalar
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+        <div className="mt-7">
+          <DependencyCards status={status} loading={loading} />
         </div>
 
         <div className="mt-6 flex items-center gap-2">
@@ -139,7 +147,8 @@ export function SetupScreen({ open, onClose }) {
 
         <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
           Pode entrar e instalar o resto quando quiser. Acabou de instalar algo? Clique em
-          “Verificar de novo”. Esta tela volta pelo menu de comandos (Ctrl/Cmd+K → “Preparar meu PC”).
+          “Verificar de novo”. Esta tela não volta mais sozinha — pra checar de novo, vá em
+          Configurações → Dependências (ou Ctrl/Cmd+K → “Preparar meu PC”).
         </p>
       </div>
     </div>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft, ChevronRight, FolderPlus, Settings, SunMoon,
   RefreshCw, Square, MessageSquarePlus, PanelLeftClose, Eye, Code2,
-  GitBranch, Zap, Plug, PenTool, History, Wrench,
+  GitBranch, Zap, Plug, PenTool, History, Wrench, RotateCw,
 } from 'lucide-react';
 import { RefreshCCWIcon } from './components/ui/refresh-ccw.jsx';
 import { XIcon } from './components/ui/x.jsx';
@@ -34,9 +34,10 @@ export default function App() {
   const projectsRef = useRef([]);
   const [pendingRemove, setPendingRemove] = useState(null); // projeto aguardando confirmação
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Tela de preparo do 1º uso: aparece até o usuário concluir uma vez (flag em localStorage).
-  const [setupOpen, setSetupOpen] = useState(() => localStorage.getItem('setupDone') !== '1');
-  const closeSetup = () => { localStorage.setItem('setupDone', '1'); setSetupOpen(false); };
+  // Tela de preparo do 1º uso: aparece só até concluir uma vez. A flag mora no config.json
+  // (via main), não no localStorage — começa fechada e abre só se o main disser que falta.
+  const [setupOpen, setSetupOpen] = useState(false);
+  const closeSetup = () => { window.api.markSetupDone(); setSetupOpen(false); };
   const [railWidth, setRailWidth] = useState(() => Number(localStorage.getItem('railWidth')) || 64);
   const [railResizing, setRailResizing] = useState(false);
   // Coluna do chat: recolhe pra ganhar espaço no preview. O react-resizable-panels
@@ -80,6 +81,22 @@ export default function App() {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // No 1º uso (flag ausente no config.json), abre a tela de preparo. Migra quem já
+  // tinha dispensado pelo localStorage antigo, pra não ver a tela de novo.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const done = await window.api.isSetupDone();
+        if (!alive) return;
+        if (done) return;
+        if (localStorage.getItem('setupDone') === '1') { window.api.markSetupDone(); return; }
+        setSetupOpen(true);
+      } catch { /* sem a ponte, não trava o app */ }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Mantém refs em dia pros listeners de atividade lerem o estado atual.
   useEffect(() => { activeRef.current = active; }, [active]);
@@ -160,6 +177,21 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Ctrl/Cmd+R recarrega a janela do app. O menu padrão do Electron (que traria esse
+  // atalho de graça) foi removido por causa do bug de colagem dupla, então religamos só
+  // o reload aqui. EXCEÇÃO: se o foco está num terminal (xterm — terminal livre ou Claude
+  // Code), deixa passar pra o Ctrl+R virar a busca reversa do shell, não recarregar o app.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((!e.ctrlKey && !e.metaKey) || e.altKey || e.key.toLowerCase() !== 'r') return;
+      if (document.activeElement?.closest?.('.xterm')) return; // foco no terminal: Ctrl+R é do shell
+      e.preventDefault();
+      window.location.reload();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const addProjects = async () => { await window.api.addProjects(); reload(); };
 
   // Abre um arquivo na aba "Código" do projeto ativo (vindo da paleta de comandos).
@@ -198,6 +230,7 @@ export default function App() {
       { id: 'app:theme', group: 'App', label: 'Alternar tema claro/escuro', icon: <SunMoon />, run: toggleTheme },
       { id: 'app:settings', group: 'App', label: 'Configurações', icon: <Settings />, run: () => setSettingsOpen(true) },
       { id: 'app:setup', group: 'App', label: 'Preparar meu PC (ferramentas)', icon: <Wrench />, run: () => setSetupOpen(true) },
+      { id: 'app:reload', group: 'App', label: 'Recarregar o app', hint: 'Ctrl/Cmd+R', icon: <RotateCw />, run: () => window.location.reload() },
     ];
     // Sem projeto ativo, ações de painel/servidor/chat ficam inertes — filtra-as.
     return active ? list : list.filter((c) => c.group === 'Projetos' || c.group === 'App');

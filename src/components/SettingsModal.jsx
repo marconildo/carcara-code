@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Sun, Moon, X, Check, Paintbrush, Bot, Wrench, Monitor, Terminal, ZoomIn, ZoomOut, RotateCcw, Bell, Sparkles, Heart, Globe, Mail, ExternalLink, Code2, Save } from 'lucide-react';
+import { Sun, Moon, X, Check, Paintbrush, Bot, Wrench, Monitor, Terminal, ZoomIn, ZoomOut, RotateCcw, Bell, Sparkles, Heart, Globe, Mail, ExternalLink, Code2, Save, HardDrive, RefreshCw } from 'lucide-react';
 import { ClaudeCodeIcon, CodexIcon, OpenCodeIcon, AntigravityIcon } from '@/lib/cliIcons.jsx';
 import { useTheme } from '@/lib/theme.jsx';
 import { Input } from './ui/input.jsx';
 import { Switch } from './ui/switch.jsx';
+import { Button } from './ui/button.jsx';
+import { useDependencyStatus, DependencyCards } from './SetupScreen.jsx';
 import { cn } from '@/lib/utils';
 
 // CLIs de IA suportados. O 'cmd' é o que é digitado no terminal ao abrir a sessão.
@@ -95,6 +97,8 @@ export function SettingsModal({ open, onClose }) {
   const [zoom, setZoom] = useState(1); // fator de zoom da janela (1 = 100%)
   const [notify, setNotify] = useState(true); // notificar quando o Claude termina
   const [autoSave, setAutoSave] = useState(false); // salvar arquivos do editor automaticamente
+  // Detecta as dependências (Node/Git) só quando a aba está aberta — mesmo motor da tela de preparo.
+  const deps = useDependencyStatus(open && tab === 'deps');
 
   // Lê o zoom atual ao abrir (mesma fonte do atalho Ctrl +/-: webFrame + localStorage).
   useEffect(() => {
@@ -169,6 +173,7 @@ export function SettingsModal({ open, onClose }) {
         <TabButton active={tab === 'appearance'} onClick={() => setTab('appearance')} icon={<Paintbrush />}>Aparência</TabButton>
         <TabButton active={tab === 'code'} onClick={() => setTab('code')} icon={<Code2 />}>Códigos</TabButton>
         <TabButton active={tab === 'notify'} onClick={() => setTab('notify')} icon={<Bell />}>Notificações</TabButton>
+        <TabButton active={tab === 'deps'} onClick={() => setTab('deps')} icon={<HardDrive />}>Dependências</TabButton>
         <div className="my-1.5 border-t" />
         <TabButton active={tab === 'about'} onClick={() => setTab('about')} icon={<Heart />}>Sobre & créditos</TabButton>
       </div>
@@ -177,7 +182,7 @@ export function SettingsModal({ open, onClose }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-14 shrink-0 items-center border-b px-6">
           <h1 className="text-[15px] font-semibold">
-            {tab === 'ai' ? 'IA por projeto' : tab === 'code' ? 'Códigos' : tab === 'notify' ? 'Notificações' : tab === 'about' ? 'Sobre & créditos' : 'Aparência'}
+            {tab === 'ai' ? 'IA por projeto' : tab === 'code' ? 'Códigos' : tab === 'notify' ? 'Notificações' : tab === 'deps' ? 'Dependências' : tab === 'about' ? 'Sobre & créditos' : 'Aparência'}
           </h1>
           <div className="flex-1" />
           <button type="button" onClick={onClose} title="Fechar (Esc)"
@@ -349,6 +354,27 @@ export function SettingsModal({ open, onClose }) {
                 <Switch checked={notify} onCheckedChange={toggleNotify}
                   title={notify ? 'Notificações ligadas' : 'Notificações desligadas'}
                   className="mt-0.5" />
+              </div>
+            </div>
+          )}
+
+          {tab === 'deps' && (
+            <div className="mx-auto max-w-3xl">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Ferramentas que o Carcará usa no seu computador. A gente checa uma vez no primeiro uso —
+                use isto pra verificar de novo caso tenha reinstalado o sistema, formatado uma partição
+                ou removido alguma delas. O CLI de IA (Claude, Codex, OpenCode…) não entra aqui: ele é
+                escolhido por projeto na aba <span className="font-medium text-foreground">IA por projeto</span>.
+              </p>
+
+              <div className="mt-5">
+                <DependencyCards status={deps.status} loading={deps.loading} />
+              </div>
+
+              <div className="mt-4">
+                <Button variant="outline" size="sm" className="gap-1.5" disabled={deps.loading} onClick={deps.check}>
+                  <RefreshCw className={'size-3.5 ' + (deps.loading ? 'animate-spin' : '')} /> Verificar de novo
+                </Button>
               </div>
             </div>
           )}

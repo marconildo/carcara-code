@@ -1089,23 +1089,35 @@ function TreeNode({ item, depth }) {
         onClick={(e) => {
           ctx.onNodeClick(e, item);
           if (e.shiftKey || e.ctrlKey || e.metaKey) return; // seleção múltipla: não abre/expande
+          // Link (atalho/junction): não dá pra expandir/abrir aqui — abre no Explorador.
+          if (item.isLink) { window.api.revealItem(item.path); return; }
           item.isDir ? setOpen((o) => !o) : ctx.onSelect(item);
         }}
         onContextMenu={(e) => { ctx.onContextNode(item); ctx.openMenu(e, item); }}
-        title={item.name}
+        title={item.isLink ? `${item.name} — atalho (abre no Explorador de Arquivos)` : item.name}
       >
-        {item.isDir ? (
+        {item.isLink ? (
+          <Link2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+        ) : item.isDir ? (
           open ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         ) : (
           <span className="w-3.5 shrink-0" />
         )}
-        <img
-          src={item.isDir ? folderIconUrl(item.name, open) : fileIconUrl(item.name)}
-          alt=""
-          draggable={false}
-          className="h-4 w-4 shrink-0"
-        />
+        <span className="relative shrink-0">
+          <img
+            src={item.isDir ? folderIconUrl(item.name, open) : fileIconUrl(item.name)}
+            alt=""
+            draggable={false}
+            className="h-4 w-4"
+          />
+          {item.isLink && (
+            // Selo de "atalho" no canto, estilo Windows, pra deixar claro que é um link.
+            <span className="absolute -bottom-0.5 -right-0.5 grid size-2.5 place-items-center rounded-full bg-primary text-[6px] text-primary-foreground ring-1 ring-background">
+              <Link2 className="size-[7px]" />
+            </span>
+          )}
+        </span>
         {isRenaming ? (
           <input
             autoFocus

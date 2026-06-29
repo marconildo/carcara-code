@@ -113,12 +113,10 @@ export function ShellView({ activeProject, visible, onOpenUrl }) {
       }));
       // Copiar/colar no terminal. Ctrl/Cmd+C copia a seleção quando há texto
       // selecionado; sem seleção, deixa virar SIGINT (interromper comando), igual
-      // ao VS Code. Ctrl/Cmd+V (e os atalhos com Shift, convenção de terminal)
-      // colam o clipboard. Usa o clipboard do Electron via IPC (mais confiável
-      // que navigator.clipboard, que pode ser bloqueado).
-      const paste = () => window.api.readText().then((r) => {
-        if (r && r.text) window.api.shellInput(activeProject, r.text);
-      });
+      // ao VS Code. Ctrl/Cmd+V: NÃO colamos por conta própria — o xterm já trata o
+      // evento 'paste' nativo do navegador (e respeita o bracketed-paste). Só
+      // retornamos false pra o xterm não mandar ^V (0x16) pro PTY; assim sobra um
+      // único caminho de colagem e o texto não entra em dobro.
       term.attachCustomKeyEventHandler((e) => {
         if (e.type !== 'keydown') return true;
         const mod = e.ctrlKey || e.metaKey;
@@ -130,7 +128,7 @@ export function ShellView({ activeProject, visible, onOpenUrl }) {
           if (sel && e.shiftKey) { window.api.copyText(sel); return false; }
           return true; // sem seleção: Ctrl+C normal (SIGINT)
         }
-        if (k === 'v') { paste(); return false; }
+        if (k === 'v') return false; // deixa a colagem nativa do xterm cuidar (uma vez só)
         return true;
       });
 

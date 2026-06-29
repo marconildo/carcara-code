@@ -6,6 +6,10 @@ contextBridge.exposeInMainWorld('api', {
   // Detecta as ferramentas externas (git/node/npm/claude) pra tela de preparo do 1º uso
   checkTools: () => ipcRenderer.invoke('system:checkTools'),
 
+  // Flag "já preparei meu PC" — persistida no config.json (aparece só uma vez)
+  isSetupDone: () => ipcRenderer.invoke('setup:isDone'),
+  markSetupDone: () => ipcRenderer.invoke('setup:markDone'),
+
   // Zoom da JANELA do app (Ctrl +/-/0 e o controle nas Configurações). Mexe só no
   // host (rail, chat, abas…); o webview do preview tem zoom próprio (tratado no main
   // quando o foco está nele). Passos de 10%, entre 50% e 200%. Devolve o fator
