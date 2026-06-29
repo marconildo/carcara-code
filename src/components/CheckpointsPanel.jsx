@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { History, RotateCcw, Plus, Loader2, Clock } from 'lucide-react';
 import { RefreshCCWIcon } from './ui/refresh-ccw.jsx';
 import { Button } from './ui/button.jsx';

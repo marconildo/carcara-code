@@ -234,7 +234,14 @@
     "copy": "Copiar",
     "close": "Fechar",
     "staged": "Em stage",
-    "changes": "Alterações"
+    "changes": "Alterações",
+    "toast_init": "Repositório criado",
+    "toast_remote": "Remoto conectado",
+    "toast_pull": "Pull concluído",
+    "toast_push": "Push concluído",
+    "toast_checkout": "Branch: {name}",
+    "toast_commit": "Commit feito",
+    "toast_pushed": "Enviado pro GitHub"
   },
   "checkpoint": {
     "history": "Histórico",
@@ -275,6 +282,7 @@
     "open_terminal": "Abrir terminal",
     "close_terminal": "Fechar terminal",
     "terminal_label": "Terminal — {projectName}",
+    "terminal_bare": "Terminal",
     "grab_active": "Clique num elemento para copiar · Esc cancela",
     "grab_done": "✓ Elemento copiado!",
     "no_preview": "O servidor de preview deste projeto não está aberto. Clique em \"Reiniciar\", no topo, para abri-lo.",

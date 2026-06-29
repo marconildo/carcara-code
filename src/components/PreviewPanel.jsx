@@ -745,7 +745,7 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
           <DragHandle onMouseDown={startResize} />
           <div className="flex h-8 shrink-0 items-center gap-2 border-b bg-card px-2.5 text-xs text-muted-foreground">
             <Terminal className="h-3.5 w-3.5" />
-            <span className="truncate font-medium">{active ? t('preview.terminal_label', { projectName: active.name }) : 'Terminal'}</span>
+            <span className="truncate font-medium">{active ? t('preview.terminal_label', { projectName: active.name }) : t('preview.terminal_bare')}</span>
             <div className="flex-1" />
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setTermOpen(false)} title={t('preview.close_terminal')}>
               <X className="h-3.5 w-3.5" />

@@ -164,13 +164,13 @@ export function GitPanel({ active, visible }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
         <GitBranch className="size-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">{t('git.not_repository')}</p>
-        <Button size="sm" disabled={!!busy} onClick={() => run('init', () => window.api.gitInit(projectPath), 'Repositório criado')}>
+        <Button size="sm" disabled={!!busy} onClick={() => run('init', () => window.api.gitInit(projectPath), t('git.toast_init'))}>
           {t('git.init_repository')}
         </Button>
         <div className="flex w-full max-w-sm items-center gap-2">
           <Input value={remoteUrl} onChange={(e) => setRemoteUrl(e.target.value)} placeholder={t('git.remote_url_placeholder')} className="h-8 text-xs" />
           <Button size="sm" variant="secondary" disabled={!remoteUrl || !!busy}
-            onClick={() => run('remote', () => window.api.gitAddRemote(projectPath, remoteUrl.trim()), 'Remoto conectado')}>
+            onClick={() => run('remote', () => window.api.gitAddRemote(projectPath, remoteUrl.trim()), t('git.toast_remote'))}>
             {t('git.connect')}
           </Button>
         </div>
@@ -212,11 +212,11 @@ export function GitPanel({ active, visible }) {
         )}
         <div className="flex-1" />
         <Button variant="ghost" size="icon" className="size-7" disabled={!!busy} title={t('git.pull')}
-          onClick={() => run('pull', () => window.api.gitPull(projectPath), 'Pull concluído')}>
+          onClick={() => run('pull', () => window.api.gitPull(projectPath), t('git.toast_pull'))}>
           <ArrowDownIcon className="size-4" />
         </Button>
         <Button variant="ghost" size="icon" className="size-7" disabled={!!busy} title={t('git.push')}
-          onClick={() => run('push', () => window.api.gitPush(projectPath), 'Push concluído')}>
+          onClick={() => run('push', () => window.api.gitPush(projectPath), t('git.toast_push'))}>
           <ArrowUpIcon className="size-4" />
         </Button>
         <Button variant="ghost" size="icon" className="size-7" disabled={loading || !!busy} title={t('git.refresh')} onClick={refresh}>
@@ -230,7 +230,7 @@ export function GitPanel({ active, visible }) {
               <div className="max-h-48 overflow-auto">
                 {branchMenu.all.map((b) => (
                   <button key={b} type="button"
-                    onClick={() => { setBranchMenu(null); run('checkout', () => window.api.gitCheckout(projectPath, b), 'Branch: ' + b); }}
+                    onClick={() => { setBranchMenu(null); run('checkout', () => window.api.gitCheckout(projectPath, b), t('git.toast_checkout', { name: b })); }}
                     className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] hover:bg-muted">
                     {b === status?.branch ? <Check className="size-3.5 text-emerald-500" /> : <span className="size-3.5" />}
                     <span className="truncate">{b}</span>
@@ -240,7 +240,7 @@ export function GitPanel({ active, visible }) {
               <div className="mt-1 flex items-center gap-1 border-t pt-1">
                 <Input value={newBranch} onChange={(e) => setNewBranch(e.target.value)} placeholder={t('git.new_branch')} className="h-7 text-xs" />
                 <Button size="sm" className="h-7" disabled={!newBranch.trim()}
-                  onClick={() => { const n = newBranch.trim(); setNewBranch(''); setBranchMenu(null); run('branch', () => window.api.gitCreateBranch(projectPath, n), 'Branch: ' + n); }}>
+                  onClick={() => { const n = newBranch.trim(); setNewBranch(''); setBranchMenu(null); run('branch', () => window.api.gitCreateBranch(projectPath, n), t('git.toast_checkout', { name: n })); }}>
                   {t('git.create_branch')}
                 </Button>
               </div>
@@ -266,13 +266,13 @@ export function GitPanel({ active, visible }) {
               if (r1 && r1.ok === false) return r1;
             }
             return window.api.gitCommit(projectPath, message.trim());
-          }, 'Commit feito').then((r) => { if (r && r.ok !== false) setMessage(''); })}>
+          }, t('git.toast_commit')).then((r) => { if (r && r.ok !== false) setMessage(''); })}>
           <Check className="size-4" />{commitAll ? t('git.commit_all_button') : t('git.commit_button')}
         </Button>
         {/* Push: o "deploy" pro GitHub. Aparece quando há commits locais a enviar. */}
         {needsPush && (
           <Button size="sm" variant="secondary" className="mt-1.5 w-full gap-1.5" disabled={!!busy}
-            onClick={() => run('push', () => window.api.gitPush(projectPath), 'Enviado pro GitHub')}>
+            onClick={() => run('push', () => window.api.gitPush(projectPath), t('git.toast_pushed'))}>
             <ArrowUp className="size-4" />
             {!status?.tracking ? t('git.publish_branch') : t('git.push_commits', { count: status.ahead })}
           </Button>
