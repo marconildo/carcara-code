@@ -39,6 +39,8 @@ export default function App() {
   const projectsRef = useRef([]);
   const [pendingRemove, setPendingRemove] = useState(null); // projeto aguardando confirmação
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
+  const [settingsTab, setSettingsTab] = useState('appearance');
   // Tela de preparo do 1º uso: aparece só até concluir uma vez. A flag mora no config.json
   // (via main), não no localStorage — começa fechada e abre só se o main disser que falta.
   const [setupOpen, setSetupOpen] = useState(false);
@@ -86,6 +88,9 @@ export default function App() {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // Versão do app (uma vez), pra exibir no rail e em Configurações > Sobre.
+  useEffect(() => { window.api.getAppVersion().then(setAppVersion).catch(() => {}); }, []);
 
   // No 1º uso (flag ausente no config.json), abre a tela de preparo. Migra quem já
   // tinha dispensado pelo localStorage antigo, pra não ver a tela de novo.
@@ -369,6 +374,8 @@ export default function App() {
       onSearch={() => setPaletteOpen(true)}
       onRailGrab={(e) => startLayoutDrag('rail', e)}
       width={railWidth}
+      version={appVersion}
+      onOpenAbout={() => { setSettingsTab('about'); setSettingsOpen(true); }}
     />
   );
   const barEl = <ResizeBar onMouseDown={startRailResize} />;
@@ -498,7 +505,7 @@ export default function App() {
         </button>
       )}
 
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal open={settingsOpen} initialTab={settingsTab} appVersion={appVersion} onClose={() => setSettingsOpen(false)} />
       <SetupScreen open={setupOpen} onClose={closeSetup} />
       <CommandPalette
         open={paletteOpen}

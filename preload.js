@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer, webUtils, webFrame } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   getConfig: () => ipcRenderer.invoke('config:get'),
 
+  // Versão do app, pra mostrar no rail e na tela Sobre.
+  getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
+
   // Detecta as ferramentas externas (git/node/npm/claude) pra tela de preparo do 1º uso
   checkTools: () => ipcRenderer.invoke('system:checkTools'),
 

@@ -112,12 +112,14 @@ function LayoutThumb({ rail, claude }) {
   return <span className="flex h-10 w-full items-stretch gap-1">{all}</span>;
 }
 
-export function SettingsModal({ open, onClose }) {
+export function SettingsModal({ open, onClose, initialTab = 'appearance', appVersion = '' }) {
   const { theme, setTheme, terminalAppearance, setTerminalAppearance } = useTheme();
   const t = useT();
   const { lang, setLang } = useLang();
   const { railSide, claudeSide, setPreset } = useLayout();
-  const [tab, setTab] = useState('ai');
+  const [tab, setTab] = useState(initialTab);
+  // Quando reabre apontando pra uma aba específica (ex.: clique na versão do rail).
+  useEffect(() => { if (open) setTab(initialTab); }, [open, initialTab]);
   const [projects, setProjects] = useState([]);
   const [sel, setSel] = useState({}); // path -> { cli, custom }
   const [zoom, setZoom] = useState(1); // fator de zoom da janela (1 = 100%)
@@ -451,6 +453,11 @@ export function SettingsModal({ open, onClose }) {
 
           {tab === 'about' && (
             <div className="mx-auto max-w-3xl">
+              {/* Versão atual — o "charme" de produto. */}
+              <div className="mb-5 flex items-baseline justify-between rounded-lg border bg-muted/30 px-4 py-3">
+                <span className="text-sm text-muted-foreground">{t('settings.aboutVersionLabel')}</span>
+                <span className="font-mono text-sm font-semibold text-foreground">Carcará Code v{appVersion || '—'}</span>
+              </div>
               {/* Cartão do autor */}
               <div className="flex items-start gap-4 rounded-xl border bg-card p-5">
                 <img

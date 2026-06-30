@@ -228,6 +228,9 @@ ipcMain.on('devtools:undock', (_e, { previewId }) => {
   try { const t = webContents.fromId(previewId); if (t && t.isDevToolsOpened()) t.closeDevTools(); } catch {}
 });
 
+// Versão do app (lida do package.json). Funciona empacotado e rodando do fonte.
+ipcMain.handle('app:getVersion', () => app.getVersion());
+
 // ---------- Config / projetos ----------
 ipcMain.handle('config:get', () => loadConfig());
 
