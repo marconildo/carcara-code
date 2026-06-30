@@ -547,6 +547,7 @@
     "layoutPresetLR": "Rail à esquerda, Claude à direita",
     "layoutPresetRL": "Rail à direita, Claude à esquerda",
     "layoutPresetRR": "Rail e Claude à direita",
-    "aboutVersionLabel": "Versão instalada"
+    "aboutVersionLabel": "Versão instalada",
+    "checkUpdates": "Verificar atualizações"
   }
 }

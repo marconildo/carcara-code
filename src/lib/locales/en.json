@@ -547,6 +547,7 @@
     "layoutPresetLR": "Sidebar left, Claude right",
     "layoutPresetRL": "Sidebar right, Claude left",
     "layoutPresetRR": "Sidebar and Claude on the right",
-    "aboutVersionLabel": "Installed version"
+    "aboutVersionLabel": "Installed version",
+    "checkUpdates": "Check for updates"
   }
 }

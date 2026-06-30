@@ -521,7 +521,16 @@ export default function App() {
           onDismiss={() => setPillDismissed(true)}
         />
       )}
-      <SettingsModal open={settingsOpen} initialTab={settingsTab} appVersion={appVersion} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal
+        open={settingsOpen}
+        initialTab={settingsTab}
+        appVersion={appVersion}
+        update={update}
+        onUpdateCheck={() => window.api.updateCheck()}
+        onUpdateDownload={() => window.api.updateDownload()}
+        onUpdateInstall={() => window.api.updateInstall()}
+        onClose={() => setSettingsOpen(false)}
+      />
       <SetupScreen open={setupOpen} onClose={closeSetup} />
       <CommandPalette
         open={paletteOpen}

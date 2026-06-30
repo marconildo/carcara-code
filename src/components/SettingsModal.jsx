@@ -9,6 +9,7 @@ import { useDependencyStatus, DependencyCards } from './SetupScreen.jsx';
 import { cn } from '@/lib/utils';
 import ygorPhoto from '@/assets/ygor/ygor-andrade.jpg';
 import { useT, useLang } from '@/lib/i18n';
+import { updateView } from '@/lib/updateView';
 import { useLayout } from '@/lib/layoutContext.jsx';
 
 // CLIs de IA suportados. O 'cmd' é o que é digitado no terminal ao abrir a sessão.
@@ -112,7 +113,7 @@ function LayoutThumb({ rail, claude }) {
   return <span className="flex h-10 w-full items-stretch gap-1">{all}</span>;
 }
 
-export function SettingsModal({ open, onClose, initialTab = 'appearance', appVersion = '' }) {
+export function SettingsModal({ open, onClose, initialTab = 'appearance', appVersion = '', update = { state: 'idle' }, onUpdateCheck, onUpdateDownload, onUpdateInstall }) {
   const { theme, setTheme, terminalAppearance, setTerminalAppearance } = useTheme();
   const t = useT();
   const { lang, setLang } = useLang();
@@ -458,6 +459,24 @@ export function SettingsModal({ open, onClose, initialTab = 'appearance', appVer
                 <span className="text-sm text-muted-foreground">{t('settings.aboutVersionLabel')}</span>
                 <span className="font-mono text-sm font-semibold text-foreground">Carcará Code v{appVersion || '—'}</span>
               </div>
+              {/* Atualização: checagem manual + status (espelha a pílula). */}
+              {(() => {
+                const v = updateView(update, t);
+                const isDev = update.state === 'dev';
+                const statusText = update.state === 'idle' ? t('update.upToDate') : v.title;
+                return (
+                  <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                    <span className="min-w-0 truncate text-sm text-muted-foreground">{statusText}</span>
+                    {v.action === 'download' ? (
+                      <button onClick={onUpdateDownload} className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">{t('update.downloadBtn')}</button>
+                    ) : v.action === 'install' ? (
+                      <button onClick={onUpdateInstall} className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">{t('update.installBtn')}</button>
+                    ) : (
+                      <button onClick={onUpdateCheck} disabled={isDev || update.state === 'checking'} className="shrink-0 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40">{t('settings.checkUpdates')}</button>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Cartão do autor */}
               <div className="flex items-start gap-4 rounded-xl border bg-card p-5">
                 <img
