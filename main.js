@@ -1,13 +1,15 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, nativeImage, Menu, webContents, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, nativeImage, Menu, webContents, Notification, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { spawn } = require('child_process');
+const { Readable } = require('stream');
 const crypto = require('crypto');
 const http = require('http');
 const detectPort = require('detect-port');
 const mcpCore = require('./mcp-core.cjs');
 const mcpOauth = require('./mcp-oauth.cjs');
+const mediaCore = require('./media-core.cjs');
 const claudeSessions = require('./claude-sessions.cjs');
 const { initUpdater } = require('./updater.cjs');
 
@@ -34,6 +36,15 @@ app.userAgentFallback = app.userAgentFallback
   .replace(/Electron\/\S+\s*/i, '')
   .replace(/\s+/g, ' ')
   .trim();
+
+// Protocolo interno pra servir áudio/vídeo com streaming + Range (seek). Precisa ser
+// registrado como privilegiado ANTES do app ficar pronto. 'stream' habilita o range.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'ygc-media',
+    privileges: { secure: true, stream: true, supportFetchAPI: true, bypassCSP: true },
+  },
+]);
 
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
 
@@ -101,6 +112,60 @@ function cleanup() {
   try { mcpCore.mcpDisconnectAll(); } catch {}
 }
 
+// Serve um arquivo de mídia pelo scheme ygc-media://, respeitando o header Range pra
+// permitir seek sem carregar o arquivo inteiro na memória. Escopo restrito às pastas
+// de projeto abertas (segurança). URL: ygc-media://local/?p=<encodeURIComponent(path)>
+function registerMediaProtocol() {
+  protocol.handle('ygc-media', async (request) => {
+    let filePath = '';
+    try { filePath = decodeURIComponent(new URL(request.url).searchParams.get('p') || ''); }
+    catch { return new Response('bad request', { status: 400 }); }
+    if (!filePath) return new Response('bad request', { status: 400 });
+
+    const roots = (loadConfig().projects) || [];
+    if (!mediaCore.isWithinRoots(filePath, roots)) return new Response('forbidden', { status: 403 });
+
+    let st;
+    try { st = fs.statSync(filePath); } catch { return new Response('not found', { status: 404 }); }
+    if (!st.isFile()) return new Response('not found', { status: 404 });
+
+    const size = st.size;
+    const mime = mediaCore.mimeForMedia(filePath);
+    const range = mediaCore.parseRange(request.headers.get('range'), size);
+
+    if (range && range.invalid) {
+      return new Response('range not satisfiable', {
+        status: 416,
+        headers: { 'Content-Range': `bytes */${size}` },
+      });
+    }
+
+    if (range) {
+      const { start, end } = range;
+      const stream = fs.createReadStream(filePath, { start, end });
+      return new Response(Readable.toWeb(stream), {
+        status: 206,
+        headers: {
+          'Content-Type': mime,
+          'Content-Length': String(end - start + 1),
+          'Content-Range': `bytes ${start}-${end}/${size}`,
+          'Accept-Ranges': 'bytes',
+        },
+      });
+    }
+
+    const stream = fs.createReadStream(filePath);
+    return new Response(Readable.toWeb(stream), {
+      status: 200,
+      headers: {
+        'Content-Type': mime,
+        'Content-Length': String(size),
+        'Accept-Ranges': 'bytes',
+      },
+    });
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -161,6 +226,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  registerMediaProtocol();
   // Remove o menu de aplicação padrão do Electron. A barra já fica escondida, mas os
   // ACELERADORES do menu padrão seguem ativos — e o Ctrl+V do "Edit → Paste" (role:
   // paste) dispara webContents.paste() ALÉM da colagem nativa do navegador, gerando
@@ -548,7 +614,7 @@ const BINARY_EXT = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.avif',
   '.woff', '.woff2', '.ttf', '.otf', '.eot', '.zip', '.gz', '.tgz',
   '.rar', '.7z', '.node', '.exe', '.dll', '.so', '.dylib', '.wasm',
-  '.mp4', '.mov', '.avi', '.webm', '.mp3', '.wav', '.flac', '.class', '.jar',
+  '.class', '.jar',
 ]);
 
 ipcMain.handle('fs:dir', (evt, { dirPath }) => {
@@ -942,6 +1008,17 @@ ipcMain.handle('fs:read', async (evt, { filePath }) => {
       return { content: fs.readFileSync(filePath, 'utf8'), csv: true };
     } catch (err) { return { error: 'Não foi possível ler o CSV: ' + ((err && err.message) || String(err)) }; }
   }
+  // Áudio/vídeo web-native: servidos pelo protocolo de streaming (ygc-media://) com Range/seek.
+  const mkind = mediaCore.mediaKind(filePath);
+  if (mkind) {
+    try {
+      const st = fs.statSync(filePath);
+      const url = 'ygc-media://local/?p=' + encodeURIComponent(filePath);
+      return { [mkind]: url, mime: mediaCore.mimeForMedia(filePath), size: st.size };
+    } catch (err) { return { error: String(err) }; }
+  }
+  // Formatos de mídia que o Chromium não decodifica: aviso claro em vez de tela preta.
+  if (mediaCore.isUnsupportedMedia(filePath)) return { unsupportedMedia: true };
   if (BINARY_EXT.has(ext)) return { binary: true };
   try {
     const st = fs.statSync(filePath);
