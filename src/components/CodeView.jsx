@@ -450,7 +450,15 @@ export function CodeView({ active, openRequest }) {
     } catch {}
   };
 
-  const onTreeDragEnd = () => { dragItemsRef.current = null; setDragActive(false); };
+  const onTreeDragEnd = () => {
+    dragItemsRef.current = null;
+    setDragActive(false);
+    // O realce do painel (treeDragOver) só era limpo pelo onDrop do container; mas quando
+    // se solta em cima de uma linha, o onDrop dela faz stopPropagation e o do container
+    // nunca roda, deixando a moldura grudada. O dragend fecha QUALQUER arrasto interno
+    // (soltar no mesmo lugar, em outra linha, cancelar), então limpamos aqui de vez.
+    setTreeDragOver(false);
+  };
 
   // Soltou sobre uma pasta (alvo interno): move o que estava sendo arrastado e limpa.
   const dropMove = async (destDir) => {
@@ -786,6 +794,7 @@ export function CodeView({ active, openRequest }) {
                     onTreeDragEnd,
                     canDropItems,
                     onDropMove: dropMove,
+                    clearTreeDragOver: () => setTreeDragOver(false),
                   }}
                 >
                   <Tree dirPath={active.path} depth={0} />
@@ -1222,13 +1231,16 @@ function TreeNode({ item, depth }) {
         onDragLeave={() => setOver(false)}
         onDrop={(e) => {
           const dest = item.isDir ? item.path : parentDir(item.path);
+          // stopPropagation impede o onDrop do container de rodar, então limpamos aqui
+          // o realce do painel (senão a moldura fica grudada — vale pro drop de arquivos
+          // de fora, que não dispara o dragend interno).
           if (e.dataTransfer.files?.length) {
-            e.preventDefault(); e.stopPropagation(); setOver(false);
+            e.preventDefault(); e.stopPropagation(); setOver(false); ctx.clearTreeDragOver?.();
             ctx.onDropFiles?.(e.dataTransfer.files, dest);
             return;
           }
           if (ctx.dragActive) {
-            e.preventDefault(); e.stopPropagation(); setOver(false);
+            e.preventDefault(); e.stopPropagation(); setOver(false); ctx.clearTreeDragOver?.();
             ctx.onDropMove?.(dest);
           }
         }}
