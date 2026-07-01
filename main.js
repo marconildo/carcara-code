@@ -301,7 +301,10 @@ app.on('web-contents-created', (_event, contents) => {
   contents.setWindowOpenHandler(({ url, disposition }) => {
     if (url && /^https?:/i.test(url)) {
       safeSend('preview:new-tab', { sourceId: contents.id, url, disposition });
-    } else if (url) {
+    } else if (url && /^mailto:/i.test(url)) {
+      // SÓ mailto: vai pro sistema — mesma regra do handler shell:openExternal. Nada de
+      // file:/smb:/ms-msdt:/data: etc.: uma página do preview não pode abrir esquemas
+      // perigosos no SO via window.open. O resto é negado sem repasse.
       shell.openExternal(url).catch(() => {});
     }
     return { action: 'deny' };
