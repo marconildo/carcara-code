@@ -53,4 +53,15 @@ describe('SshShell', () => {
     stream._emit('close');
     expect(exit).toHaveBeenCalled();
   });
+
+  it('aplica o último resize pedido quando o canal abre depois', () => {
+    let openCb;
+    const stream = fakeStream();
+    const client = { shell: (opts, cb) => { openCb = () => cb(null, stream); } };
+    const t = new SshShell(client, { cols: 80, rows: 24, remoteDir: '/' });
+    t.resize(120, 40);                 // resize antes do canal abrir
+    expect(stream.setWindow).not.toHaveBeenCalled();
+    openCb();                          // canal abre → aplica o último tamanho
+    expect(stream.setWindow).toHaveBeenCalledWith(40, 120, 0, 0);
+  });
 });

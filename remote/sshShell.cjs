@@ -18,6 +18,7 @@ class SshShell {
         this.stream = stream;
         stream.on('data', (d) => { if (this._dataCb) this._dataCb(d.toString('utf8')); });
         stream.on('close', () => { if (this._exitCb) this._exitCb(); });
+        if (this._lastSize) { try { stream.setWindow(this._lastSize.rows, this._lastSize.cols, 0, 0); } catch {} }
         if (remoteDir && remoteDir !== '/') stream.write('cd ' + shq(remoteDir) + '\n');
         for (const d of this.pending) stream.write(d);
         this.pending = [];
