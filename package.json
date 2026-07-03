@@ -10,7 +10,8 @@
     "test": "vitest run",
     "pack:exe": "vite build && electron-builder --win nsis --publish never",
     "test:i18n": "node scripts/i18n-parity.smoke.cjs",
-    "test:csv": "node scripts/csv-smoke.cjs"
+    "test:csv": "node scripts/csv-smoke.cjs",
+    "test:rail": "node scripts/rail-smoke.cjs"
   },
   "build": {
     "appId": "com.carcara.code",
