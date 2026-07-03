@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, nativeImage, Menu, webContents, Notification, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, nativeImage, Menu, webContents, Notification, protocol, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -13,6 +13,12 @@ const mediaCore = require('./media-core.cjs');
 const claudeSessions = require('./claude-sessions.cjs');
 const { initUpdater } = require('./updater.cjs');
 const { LocalPty } = require('./remote/localPty.cjs');
+const { isRemote, parseSshUri, hostKey } = require('./remote/sshUri.cjs');
+const { SshShell } = require('./remote/sshShell.cjs');
+const { makeSecretStore } = require('./remote/secretStore.cjs');
+const { makeKnownHosts } = require('./remote/knownHosts.cjs');
+const { makeConnections } = require('./remote/connections.cjs');
+const { Client: SshClient } = require('ssh2');
 
 let mainWindow;
 let updater = null;
@@ -20,6 +26,11 @@ const runningServers = new Map(); // projectPath -> { proc, url, port, log }
 const terminals = new Map();      // sessionId -> { pty, buffer, projectPath } (sessões do Claude Code)
 const shells = new Map();         // projectPath -> { pty, buffer } (terminal livre por projeto)
 let ptyLib = null;
+// Camada 1 SSH: instanciados em app.whenReady() (precisam de app.getPath('userData')).
+// Módulo-scope (não const dentro do whenReady) pra ficarem visíveis aos handlers IPC.
+let secretStore = null;
+let knownHosts = null;
+let connections = null;
 
 const APP_NAME = 'Carcará Code';
 const APP_ICON = path.join(__dirname, 'build', 'icon.png');
@@ -69,6 +80,30 @@ function saveConfig(cfg) {
   try { fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2)); } catch {}
 }
 
+// Perfil de um projeto remoto, guardado em cfg.remotes[hostKey] (não-secreto).
+function remoteProfile(hk) {
+  const c = loadConfig();
+  return (c.remotes && c.remotes[hk]) || null;
+}
+
+// Confirmação TOFU do host key via diálogo nativo. Retorna Promise<boolean>.
+function confirmHostKey(hk, fingerprint, state) {
+  const changed = state === 'changed';
+  const title = changed ? 'Host key MUDOU' : 'Novo host SSH';
+  const detail = changed
+    ? `A identidade de ${hk} mudou (${fingerprint}). Pode ser um servidor recriado — ou um ataque. Confiar mesmo assim?`
+    : `Primeira conexão com ${hk}.\nFingerprint: ${fingerprint}\nConfiar neste servidor?`;
+  return dialog.showMessageBox(mainWindow, {
+    type: changed ? 'warning' : 'question',
+    buttons: ['Confiar', 'Cancelar'],
+    defaultId: changed ? 1 : 0,
+    cancelId: 1,
+    title,
+    message: title,
+    detail,
+  }).then((r) => r.response === 0);
+}
+
 const NATIVE_STRINGS = require('./main.i18n.cjs');
 
 // Idioma do processo main: config.json > idioma do sistema > 'pt'.
@@ -111,6 +146,7 @@ function cleanup() {
   for (const s of shells.values()) { try { s.pty.kill(); } catch {} }
   shells.clear();
   try { mcpCore.mcpDisconnectAll(); } catch {}
+  try { connections.endAll(); } catch {}
 }
 
 // Serve um arquivo de mídia pelo scheme ygc-media://, respeitando o header Range pra
@@ -227,6 +263,23 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  secretStore = makeSecretStore({
+    crypto: safeStorage,
+    filePath: path.join(app.getPath('userData'), 'remotes.secrets'),
+  });
+  knownHosts = makeKnownHosts({
+    filePath: path.join(app.getPath('userData'), 'known_hosts.json'),
+  });
+  connections = makeConnections({
+    Client: SshClient,
+    getProfile: (hk) => remoteProfile(hk),
+    getSecret: (hk) => secretStore.load(hk),
+    readKey: (p) => fs.readFileSync(p),
+    knownHosts,
+    confirmHostKey: (hk, fp, state) => confirmHostKey(hk, fp, state),
+    onStatus: (hk, status) => safeSend('remote:status', { hostKey: hk, status }),
+    agentFor: () => (process.platform === 'win32' ? 'pageant' : process.env.SSH_AUTH_SOCK || ''),
+  });
   registerMediaProtocol();
   // Remove o menu de aplicação padrão do Electron. A barra já fica escondida, mas os
   // ACELERADORES do menu padrão seguem ativos — e o Ctrl+V do "Edit → Paste" (role:
