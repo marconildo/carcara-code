@@ -2272,6 +2272,9 @@ async function startPhpPreview(projectPath) {
     return { error: e.message };
   }
 
+  // Se o projeto foi parado/trocado durante o download, aborta sem subir (evita php órfão).
+  if (runningServers.get(projectPath) !== entry) return { stopped: true };
+
   // 2) Porta livre + php -S no docroot certo.
   const port = await pickFreePort();
   entry.chosenPort = port;
