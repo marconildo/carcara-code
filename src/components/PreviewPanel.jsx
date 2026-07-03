@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Terminal, X, Copy, Bug, Loader2, Crosshair, Camera, ExternalLink, Monitor, Tablet, Smartphone, Plus, Globe } from 'lucide-react';
+import { Terminal, X, Copy, Bug, Loader2, Crosshair, Camera, Crop, ExternalLink, Monitor, Tablet, Smartphone, Plus, Globe } from 'lucide-react';
 // Ícones animados (lucide-animated): animam no hover. Só os que têm versão no
 // registry; Crosshair/Bug seguem estáticos (não há equivalente animado).
 import { EarthIcon } from './ui/earth.jsx';
@@ -252,6 +252,51 @@ function DevicePicker({ value, onChange, disabled }) {
   );
 }
 
+// Menu da câmera (mesmo padrão do DevicePicker): clicar abre "Selecionar área" / "Tela toda".
+function ShotPicker({ onArea, onFull, active, disabled }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [open]);
+  const OPTS = [
+    { key: 'area', label: t('preview.shot_area'), Icon: Crop, run: onArea },
+    { key: 'full', label: t('preview.shot_full'), Icon: Monitor, run: onFull },
+  ];
+  return (
+    <div ref={ref} className="relative">
+      <ToolButton
+        onClick={() => setOpen((o) => !o)}
+        disabled={disabled}
+        active={open || active}
+        title={t('preview.screenshot')}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Camera />
+      </ToolButton>
+      {open && (
+        <div className="absolute left-0 top-9 z-50 min-w-[170px] overflow-hidden rounded-md border bg-popover py-1 shadow-md">
+          {OPTS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => { setOpen(false); o.run(); }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-muted [&_svg]:size-4"
+            >
+              <o.Icon />{o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Sessão isolada por projeto. Sem isso, todos os previews dividem a sessão padrão
 // do Electron (mesmo cache, localStorage e SERVICE WORKER). Um SW registrado por
 // um site (ex.: localhost:8080) passa a interceptar e servir aquele site pra
@@ -483,6 +528,14 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
     window.api.on('nav:forward', () => nav('fwd'));
   }, []);
 
+  // Um modo por vez: "selecionar elemento" e "print" são mutuamente exclusivos.
+  const stopShoot = useCallback(() => { setShooting(false); setShotRect(null); shootStartRef.current = null; }, []);
+  const stopGrab = useCallback(() => {
+    const w = active && activeWebviewOf(active.path);
+    try { w && w.executeJavaScript(CLEANUP); } catch {}
+    setGrabbing(false);
+  }, [active]);
+
   // Liga/desliga o modo "selecionar elemento" no webview do projeto ativo.
   const toggleGrab = useCallback(() => {
     if (!active) return;
@@ -492,9 +545,10 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
       try { w.executeJavaScript(CLEANUP); } catch {}
       setGrabbing(false);
     } else {
+      stopShoot(); // entrar no seletor desliga o print
       w.executeJavaScript(INJECT).then(() => setGrabbing(true)).catch(() => {});
     }
-  }, [active, grabbing]);
+  }, [active, grabbing, stopShoot]);
 
   // Sai do modo "selecionar" se deixar o preview/site (troca de aba, para o servidor, etc.).
   useEffect(() => {
@@ -565,15 +619,8 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
   useEffect(() => { setFindOpen(false); }, [tabBar.activeId, active?.path]);
 
   // ---- Print do preview (tela toda ou recorte) ----
-  // Liga/desliga o modo print. O overlay (camada do app) captura o gesto; a captura
-  // em si roda no main via webContents.capturePage e cai no clipboard.
-  const toggleShoot = useCallback(() => {
-    if (!active) return;
-    setShooting((s) => {
-      if (s) { setShotRect(null); shootStartRef.current = null; }
-      return !s;
-    });
-  }, [active]);
+  // O overlay (camada do app) captura o gesto de recorte; a captura em si roda no main
+  // via webContents.capturePage e cai no clipboard.
 
   // Captura o webview ativo (rect = null → tela toda) e mostra o toast no sucesso.
   const doCapture = useCallback(async (rect) => {
@@ -585,6 +632,20 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
     const res = await window.api.capturePreview(id, rect);
     if (res && res.ok) { setShot(true); setTimeout(() => setShot(false), 2200); }
   }, [active]);
+
+  // Menu da câmera: "Selecionar área" entra no modo recorte; "Tela toda" captura na hora.
+  // Qualquer um desliga o seletor de elemento (um modo por vez).
+  const startCrop = useCallback(() => { if (!active) return; stopGrab(); setShooting(true); }, [active, stopGrab]);
+  const captureFull = useCallback(() => { if (!active) return; stopGrab(); setShooting(false); doCapture(null); }, [active, stopGrab, doCapture]);
+
+  // Borda externa laranja no webview enquanto o modo print (recorte) está ativo, pra
+  // sinalizar "vou tirar foto" (não é a borda interna do foco; é a borda do elemento).
+  useEffect(() => {
+    const w = active && activeWebviewOf(active.path);
+    if (!w) return;
+    try { w.style.boxShadow = shooting ? '0 0 0 3px hsl(var(--primary))' : ''; } catch {}
+    return () => { try { w.style.boxShadow = ''; } catch {} };
+  }, [shooting, active, mode]);
 
   // Início do arraste no overlay: registra o ponto e escuta mover/soltar na janela
   // (robusto se o mouse sair da área do preview no meio do gesto).
@@ -1105,7 +1166,7 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
 
             <div className="flex items-center gap-0.5">
               <ToolButton onClick={toggleGrab} disabled={mode !== 'web'} active={grabbing} title={t('preview.grab_element')}><Crosshair /></ToolButton>
-              <ToolButton onClick={toggleShoot} disabled={mode !== 'web'} active={shooting} title={t('preview.screenshot')}><Camera /></ToolButton>
+              <ShotPicker onArea={startCrop} onFull={captureFull} active={shooting} disabled={mode !== 'web'} />
               <ToolButton onClick={toggleDevtools} disabled={mode !== 'web'} active={devtoolsOpen} title={t('preview.devtools')}><Bug /></ToolButton>
             </div>
             <div className="h-5 w-px bg-border" />
