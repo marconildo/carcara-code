@@ -1211,6 +1211,21 @@ ipcMain.handle('clip:read', () => {
   catch { return { text: '' }; }
 });
 
+// Print do preview: captura o <webview> (inteiro ou um recorte) e joga a imagem no
+// clipboard. `rect` null = viewport visível inteiro; senão { x, y, width, height } em
+// DIP relativo ao topo-esquerda do webview (mesma unidade do getBoundingClientRect).
+ipcMain.handle('preview:capture', async (evt, { webContentsId, rect }) => {
+  try {
+    const wc = webContents.fromId(webContentsId);
+    if (!wc) return { error: 'no-webcontents' };
+    const img = await wc.capturePage(rect || undefined);
+    if (!img || img.isEmpty()) return { error: 'empty' };
+    clipboard.writeImage(img);
+    const size = img.getSize();
+    return { ok: true, width: size.width, height: size.height };
+  } catch (err) { return { error: String(err) }; }
+});
+
 function uniqueDest(destDir, base) {
   const ext = path.extname(base);
   const stem = base.slice(0, base.length - ext.length);

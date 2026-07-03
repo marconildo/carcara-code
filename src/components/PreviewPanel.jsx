@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Terminal, X, Copy, Bug, Loader2, Crosshair, ExternalLink, Monitor, Tablet, Smartphone, Plus, Globe } from 'lucide-react';
+import { Terminal, X, Copy, Bug, Loader2, Crosshair, Camera, ExternalLink, Monitor, Tablet, Smartphone, Plus, Globe } from 'lucide-react';
 // Ícones animados (lucide-animated): animam no hover. Só os que têm versão no
 // registry; Crosshair/Bug seguem estáticos (não há equivalente animado).
 import { EarthIcon } from './ui/earth.jsx';
@@ -24,6 +24,7 @@ import { EmptyState } from './ui/empty-state.jsx';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
 import { INJECT, CLEANUP, GRAB_SENTINEL, GRAB_CANCEL } from '@/lib/grabScript';
+import { rectFromDrag } from '@/lib/screenshot';
 import { useT } from '@/lib/i18n';
 
 // Faz os botões laterais do mouse (voltar/avançar) funcionarem dentro do preview.
@@ -302,6 +303,11 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
   const [termDragging, setTermDragging] = useState(false);
   const [grabbing, setGrabbing] = useState(false);   // modo "selecionar elemento" ativo
   const [grabbed, setGrabbed] = useState(false);      // toast "Elemento copiado!"
+  const [shooting, setShooting] = useState(false);    // modo "print do preview" ativo
+  const [shot, setShot] = useState(false);            // toast "Print copiado!"
+  const [shotRect, setShotRect] = useState(null);     // rubber-band do arraste (coords do overlay), null quando não arrastando
+  const shootStartRef = useRef(null);                 // { cx, cy } início do arraste (coords de tela)
+  const overlayRef = useRef(null);                    // camada do print (pra medir e desenhar o retângulo)
   const [canBack, setCanBack] = useState(false);      // navegação do preview (voltar/avançar)
   const [canFwd, setCanFwd] = useState(false);
   const [webFocused, setWebFocused] = useState(false); // foco está DENTRO do webview do projeto ativo
@@ -511,6 +517,75 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [grabbing]);
+
+  // ---- Print do preview (tela toda ou recorte) ----
+  // Liga/desliga o modo print. O overlay (camada do app) captura o gesto; a captura
+  // em si roda no main via webContents.capturePage e cai no clipboard.
+  const toggleShoot = useCallback(() => {
+    if (!active) return;
+    setShooting((s) => {
+      if (s) { setShotRect(null); shootStartRef.current = null; }
+      return !s;
+    });
+  }, [active]);
+
+  // Captura o webview ativo (rect = null → tela toda) e mostra o toast no sucesso.
+  const doCapture = useCallback(async (rect) => {
+    const w = active && activeWebviewOf(active.path);
+    if (!w) return;
+    let id = null;
+    try { id = w.getWebContentsId(); } catch {}
+    if (id == null) return;
+    const res = await window.api.capturePreview(id, rect);
+    if (res && res.ok) { setShot(true); setTimeout(() => setShot(false), 2200); }
+  }, [active]);
+
+  // Início do arraste no overlay: registra o ponto e escuta mover/soltar na janela
+  // (robusto se o mouse sair da área do preview no meio do gesto).
+  const onShootDown = (e) => {
+    e.preventDefault();
+    const start = { cx: e.clientX, cy: e.clientY };
+    shootStartRef.current = start;
+    const o0 = overlayRef.current?.getBoundingClientRect();
+    if (o0) setShotRect({ x: e.clientX - o0.left, y: e.clientY - o0.top, w: 0, h: 0 });
+    const onMove = (ev) => {
+      const o = overlayRef.current?.getBoundingClientRect();
+      if (!o) return;
+      const x1 = start.cx - o.left, y1 = start.cy - o.top;
+      const x2 = ev.clientX - o.left, y2 = ev.clientY - o.top;
+      setShotRect({ x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) });
+    };
+    const onUp = (ev) => {
+      window.removeEventListener('mousemove', onMove, true);
+      window.removeEventListener('mouseup', onUp, true);
+      shootStartRef.current = null;
+      setShotRect(null);
+      setShooting(false);
+      const w = active && activeWebviewOf(active.path);
+      if (!w) return;
+      // Coords relativas ao WEBVIEW (não ao overlay): nos modos tablet/celular o
+      // webview é centralizado, então o topo-esquerda dele difere do container.
+      const wr = w.getBoundingClientRect();
+      const rect = rectFromDrag(start.cx - wr.left, start.cy - wr.top, ev.clientX - wr.left, ev.clientY - wr.top, { width: wr.width, height: wr.height });
+      doCapture(rect);
+    };
+    window.addEventListener('mousemove', onMove, true);
+    window.addEventListener('mouseup', onUp, true);
+  };
+
+  // Sai do modo print ao deixar o preview/site, ou ao trocar de projeto.
+  useEffect(() => {
+    if (shooting && !(view === 'preview' && mode === 'web')) { setShooting(false); setShotRect(null); }
+  }, [view, mode, shooting]);
+  useEffect(() => { setShooting(false); setShotRect(null); shootStartRef.current = null; }, [active?.path]);
+
+  // Esc cancela o modo print mesmo com o foco fora do webview.
+  useEffect(() => {
+    if (!shooting) return;
+    const onKey = (e) => { if (e.key === 'Escape') { setShooting(false); setShotRect(null); shootStartRef.current = null; } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [shooting]);
 
   const showWebFor = useCallback((projectPath, u) => {
     urlsRef.current.set(projectPath, u);
@@ -984,6 +1059,7 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
 
             <div className="flex items-center gap-0.5">
               <ToolButton onClick={toggleGrab} disabled={mode !== 'web'} active={grabbing} title={t('preview.grab_element')}><Crosshair /></ToolButton>
+              <ToolButton onClick={toggleShoot} disabled={mode !== 'web'} active={shooting} title={t('preview.screenshot')}><Camera /></ToolButton>
               <ToolButton onClick={toggleDevtools} disabled={mode !== 'web'} active={devtoolsOpen} title={t('preview.devtools')}><Bug /></ToolButton>
             </div>
             <div className="h-5 w-px bg-border" />
@@ -1046,6 +1122,29 @@ export function PreviewPanel({ active, onProjectsChanged, controlsRef, onModeCha
             <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center">
               <div className={cn('rounded-full border px-3 py-1.5 text-xs font-medium shadow-md', grabbed ? 'border-primary/40 bg-primary text-primary-foreground' : 'bg-popover text-popover-foreground')}>
                 {grabbed ? t('preview.grab_done') : t('preview.grab_active')}
+              </div>
+            </div>
+          )}
+          {/* Print do preview: camada por cima do webview que captura o gesto de recorte.
+              É camada do APP (não entra no capturePage), então o retângulo não aparece na foto. */}
+          {inPreview && mode === 'web' && shooting && (
+            <div
+              ref={overlayRef}
+              onMouseDown={onShootDown}
+              className="absolute inset-0 z-30 cursor-crosshair"
+            >
+              {shotRect && (
+                <div
+                  className="absolute border-2 border-primary bg-primary/20"
+                  style={{ left: shotRect.x, top: shotRect.y, width: shotRect.w, height: shotRect.h }}
+                />
+              )}
+            </div>
+          )}
+          {inPreview && (shooting || shot) && (
+            <div className="pointer-events-none absolute inset-x-0 top-3 z-40 flex justify-center">
+              <div className={cn('rounded-full border px-3 py-1.5 text-xs font-medium shadow-md', shot ? 'border-primary/40 bg-primary text-primary-foreground' : 'bg-popover text-popover-foreground')}>
+                {shot ? t('preview.shot_done') : t('preview.shot_active')}
               </div>
             </div>
           )}

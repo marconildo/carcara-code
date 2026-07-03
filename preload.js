@@ -163,6 +163,7 @@ contextBridge.exposeInMainWorld('api', {
   createItem: (destDir, name, isDir) => ipcRenderer.invoke('fs:create', { destDir, name, isDir }),
   copyText: (text) => ipcRenderer.invoke('clip:write', { text }),
   readText: () => ipcRenderer.invoke('clip:read'),
+  capturePreview: (webContentsId, rect) => ipcRenderer.invoke('preview:capture', { webContentsId, rect }),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', { url }),
 
   // Drag and drop de arquivos
