@@ -1,29 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Sun, Moon, X, Check, Paintbrush, Bot, Wrench, Monitor, Terminal, ZoomIn, ZoomOut, RotateCcw, Bell, Sparkles, Heart, Globe, Mail, ExternalLink, Code2, Save, HardDrive, RefreshCw, WrapText } from 'lucide-react';
-import { ClaudeCodeIcon, CodexIcon, OpenCodeIcon, AntigravityIcon } from '@/lib/cliIcons.jsx';
+import { Sun, Moon, X, Check, Paintbrush, Bot, Monitor, Terminal, ZoomIn, ZoomOut, RotateCcw, Bell, Sparkles, Heart, Globe, Mail, ExternalLink, Code2, Save, HardDrive, RefreshCw, WrapText } from 'lucide-react';
 import { useTheme } from '@/lib/theme.jsx';
 import { Input } from './ui/input.jsx';
 import { Switch } from './ui/switch.jsx';
 import { Button } from './ui/button.jsx';
 import { useDependencyStatus, DependencyCards } from './SetupScreen.jsx';
 import { cn } from '@/lib/utils';
+import { AI_OPTIONS, OPT, CliBadge } from '@/lib/aiOptions.jsx';
 import ygorPhoto from '@/assets/ygor/ygor-andrade.jpg';
 import { useT, useLang } from '@/lib/i18n';
 import { updateView } from '@/lib/updateView';
 import { useLayout } from '@/lib/layoutContext.jsx';
-
-// CLIs de IA suportados. O 'cmd' é o que é digitado no terminal ao abrir a sessão.
-// 'Icon' = logo da marca (Claude Code/OpenCode reais; Antigravity usa o "G" do Google;
-// Codex/OpenAI não tem logo no conjunto CC0, então usa ícone genérico). 'color' = cor da marca.
-// 'desc' é uma CHAVE de tradução (resolvida com t(opt.desc) no render).
-const AI_OPTIONS = [
-  { key: 'claude', label: 'Claude Code', cmd: 'claude', color: '#d97757', Icon: ClaudeCodeIcon, fullColor: true, desc: 'settings.aiClaudeDesc' },
-  { key: 'codex', label: 'Codex (OpenAI)', cmd: 'codex', color: '#5b6bff', Icon: CodexIcon, fullColor: true, desc: 'settings.aiCodexDesc' },
-  { key: 'opencode', label: 'OpenCode', cmd: 'opencode', color: '#7c5cff', Icon: OpenCodeIcon, fullColor: true, desc: 'settings.aiOpencodeDesc' },
-  { key: 'agy', label: 'Antigravity', cmd: 'agy', color: '#4285f4', Icon: AntigravityIcon, fullColor: true, desc: 'settings.aiAgyDesc' },
-  { key: 'custom', label: null, cmd: '', color: '#6b7280', Icon: Wrench, desc: 'settings.aiCustomDesc' },
-];
-const OPT = Object.fromEntries(AI_OPTIONS.map((o) => [o.key, o]));
 
 // Ícones de marca em SVG inline — o lucide removeu os logos de marca (questão de trademark),
 // então desenhamos aqui. Herdam currentColor e tamanho via className do <span> que os envolve.
@@ -79,20 +66,6 @@ const AUTHOR = {
 function openLink(href) {
   if (window.api?.openExternal) window.api.openExternal(href);
   else window.open(href, '_blank');
-}
-
-function CliBadge({ optKey, small }) {
-  const o = OPT[optKey] || OPT.custom;
-  const Icon = o.Icon;
-  // Logo colorido (tem fundo próprio) preenche o badge sem o quadrado tingido.
-  if (o.fullColor) {
-    return <Icon className={cn('shrink-0 rounded', small ? 'size-4' : 'size-5')} />;
-  }
-  return (
-    <span className={cn('grid shrink-0 place-items-center rounded', small ? 'size-4' : 'size-5')} style={{ background: o.color + '22', color: o.color }}>
-      <Icon className={small ? 'size-3' : 'size-3.5'} />
-    </span>
-  );
 }
 
 // Os 4 layouts possíveis (lado do rail x lado do Claude). labelKey = chave i18n.
