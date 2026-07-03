@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { validateRemoteProfile } from '@/lib/remoteProfile.js';
 import { useT } from '@/lib/i18n';
+import { toast } from '@/lib/toast.js';
 
 const EMPTY = { host: '', port: 22, user: '', authType: 'key', keyPath: '', remoteDir: '', label: '' };
 
@@ -37,6 +38,9 @@ export function RemoteProjectModal({ open, onClose, onAdded }) {
     setBusy(true);
     const res = await window.api.addRemote(p, secret);
     setBusy(false);
+    if (res && res.secretSaved === false && (p.authType === 'password' || p.authType === 'key') && secret) {
+      toast(t('remote.warn_secret'));
+    }
     onAdded?.(res.uri);
     onClose?.();
   }

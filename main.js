@@ -640,10 +640,18 @@ ipcMain.handle('remote:test', (evt, { profile, secret }) => new Promise((resolve
   const conn = new SshClient();
   let done = false;
   const finish = (ok, message) => { if (done) return; done = true; try { conn.end(); } catch {} resolve({ ok, message }); };
+  const port = parseInt(profile.port, 10) || 22;
+  const hk = `${profile.user}@${profile.host}:${port}`;
   const cfg = {
-    host: profile.host, port: parseInt(profile.port, 10) || 22, username: profile.user,
+    host: profile.host, port, username: profile.user,
     readyTimeout: 10000,
-    hostVerifier: () => true, // teste não persiste TOFU
+    hostVerifier: (keyBuf, verify) => {
+      const state = knownHosts.check(hk, keyBuf);
+      if (state === 'trusted') return verify(true);
+      Promise.resolve(confirmHostKey(hk, knownHosts.fingerprint(keyBuf), state))
+        .then((ok) => { if (ok) knownHosts.trust(hk, keyBuf); verify(!!ok); })
+        .catch(() => verify(false));
+    },
   };
   if (profile.authType === 'key') { try { cfg.privateKey = fs.readFileSync(profile.keyPath); } catch (e) { return finish(false, 'Chave: ' + e.message); } if (secret) cfg.passphrase = secret; }
   else if (profile.authType === 'password') cfg.password = secret;

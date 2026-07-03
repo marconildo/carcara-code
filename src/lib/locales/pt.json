@@ -616,6 +616,7 @@
     "err_host": "Informe o host.",
     "err_user": "Informe o usuário.",
     "err_remotedir": "Informe o diretório remoto.",
-    "err_keypath": "Informe o arquivo da chave privada."
+    "err_keypath": "Informe o arquivo da chave privada.",
+    "warn_secret": "Não foi possível salvar a senha com segurança neste sistema; ela será pedida ao conectar."
   }
 }

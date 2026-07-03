@@ -153,7 +153,8 @@ export function ShellView({ activeProject, visible, onOpenUrl }) {
           if (d === '\r') {
             t.awaitingReconnect = false;
             t.term.write('\r\n\x1b[90m[reconectando…]\x1b[0m\r\n');
-            window.api.reconnectRemote(activeProject).then(() => {
+            window.api.reconnectRemote(activeProject).then((r) => {
+              if (r && r.ok === false) { t.term.write('\r\n\x1b[31m[' + (r.error || 'reconexão falhou') + ']\x1b[0m\r\n'); return; }
               window.api.shellEnsure(activeProject, t.term.cols, t.term.rows).then((res) => {
                 if (res && res.error) t.term.write('\r\n\x1b[31m[' + res.error + ']\x1b[0m\r\n');
                 else if (res && res.buffer) t.term.write(res.buffer);

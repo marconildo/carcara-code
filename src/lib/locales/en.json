@@ -616,6 +616,7 @@
     "err_host": "Enter the host.",
     "err_user": "Enter the user.",
     "err_remotedir": "Enter the remote directory.",
-    "err_keypath": "Enter the private key file."
+    "err_keypath": "Enter the private key file.",
+    "warn_secret": "Could not securely store the password on this system; you'll be asked for it when connecting."
   }
 }
