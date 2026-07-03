@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const https = require('https');
+const { spawnSync } = require('child_process');
 
 // --- Detecção de tipo de projeto ---------------------------------------
 function hasNodeDevScript(projectPath) {
@@ -57,7 +59,92 @@ function verifySha256(filePath, expectedHex) {
   });
 }
 
+// --- Runtime PHP sob demanda -------------------------------------------
+const PHP_VERSION = '8.5.8';
+const PHP_ZIP_NAME = `php-${PHP_VERSION}-nts-Win32-vs17-x64.zip`;
+const PHP_SHA256 = '63a3f6493f37c9ff3e288ec16621222a6cda5167dd1abffec0019e7f18c8e7e9';
+const PHP_DOWNLOAD_URLS = [
+  `https://windows.php.net/downloads/releases/${PHP_ZIP_NAME}`,
+  `https://windows.php.net/downloads/releases/archives/${PHP_ZIP_NAME}`,
+];
+
+function downloadTo(url, destPath, redirectsLeft = 5) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, (res) => {
+      const { statusCode, headers } = res;
+      if (statusCode >= 300 && statusCode < 400 && headers.location) {
+        res.resume();
+        if (redirectsLeft <= 0) return reject(new Error('excesso de redirects'));
+        const next = new URL(headers.location, url).toString();
+        return resolve(downloadTo(next, destPath, redirectsLeft - 1));
+      }
+      if (statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${statusCode} ao baixar ${url}`)); }
+      const out = fs.createWriteStream(destPath);
+      res.pipe(out);
+      out.on('finish', () => out.close(() => resolve()));
+      out.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(120000, () => req.destroy(new Error('timeout no download do PHP')));
+  });
+}
+
+async function downloadFirstAvailable(urls, destPath) {
+  let lastErr;
+  for (const u of urls) {
+    try { await downloadTo(u, destPath); return u; }
+    catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('nenhuma URL de download disponível');
+}
+
+function extractZip(zipPath, destDir) {
+  // Windows: usa o Expand-Archive do PowerShell (sem dependência npm).
+  const r = spawnSync('powershell', [
+    '-NoProfile', '-NonInteractive', '-Command',
+    `Expand-Archive -LiteralPath '${zipPath}' -DestinationPath '${destDir}' -Force`,
+  ], { encoding: 'utf8' });
+  if (r.status !== 0) {
+    throw new Error('falha ao extrair o PHP: ' + (r.stderr || r.error?.message || 'erro desconhecido'));
+  }
+}
+
+async function ensurePhpRuntime({ cacheBaseDir, onPhase }) {
+  const phase = (m) => { if (onPhase) onPhase(m); };
+  const versionDir = path.join(cacheBaseDir, PHP_VERSION);
+  const phpExe = path.join(versionDir, 'php.exe');
+  if (fs.existsSync(phpExe)) return phpExe;                 // cache hit
+
+  fs.mkdirSync(versionDir, { recursive: true });
+  const zipPath = path.join(versionDir, PHP_ZIP_NAME);
+
+  phase('Baixando PHP (primeira vez)…');
+  try {
+    await downloadFirstAvailable(PHP_DOWNLOAD_URLS, zipPath);
+  } catch (e) {
+    try { fs.rmSync(zipPath, { force: true }); } catch {}
+    throw new Error('Não foi possível baixar o PHP (verifique a conexão). ' + e.message);
+  }
+
+  phase('Verificando o download…');
+  const ok = await verifySha256(zipPath, PHP_SHA256);
+  if (!ok) {
+    try { fs.rmSync(zipPath, { force: true }); } catch {}
+    throw new Error('Checksum do PHP não confere — download abortado por segurança.');
+  }
+
+  phase('Extraindo o PHP…');
+  extractZip(zipPath, versionDir);
+  try { fs.rmSync(zipPath, { force: true }); } catch {}
+
+  if (!fs.existsSync(phpExe)) {
+    throw new Error('php.exe não encontrado após a extração.');
+  }
+  return phpExe;
+}
+
 module.exports = {
   detectProjectType, resolvePhpDocroot, buildPhpServeArgs,
   isVcRedistError, verifySha256,
+  PHP_VERSION, PHP_ZIP_NAME, PHP_DOWNLOAD_URLS, PHP_SHA256, ensurePhpRuntime,
 };

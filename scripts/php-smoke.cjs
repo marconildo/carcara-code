@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const {
   detectProjectType, resolvePhpDocroot, buildPhpServeArgs,
   isVcRedistError, verifySha256,
+  PHP_VERSION, PHP_ZIP_NAME, PHP_DOWNLOAD_URLS, PHP_SHA256,
 } = require('../php-runtime.cjs');
 
 function assert(cond, msg) { if (!cond) throw new Error('ASSERT: ' + msg); }
@@ -76,6 +77,14 @@ async function run() {
   assert((await verifySha256(f, expected.toUpperCase())) === true, 'sha256 case-insensitive -> true');
   assert((await verifySha256(f, '00'.repeat(32))) === false, 'sha256 errado -> false');
   console.log('verifySha256 ok');
+
+  // Constantes do runtime fixadas
+  assert(PHP_VERSION === '8.5.8', 'versão fixada 8.5.8');
+  assert(PHP_ZIP_NAME === 'php-8.5.8-nts-Win32-vs17-x64.zip', 'nome do zip correto');
+  assert(/^[a-f0-9]{64}$/i.test(PHP_SHA256), 'PHP_SHA256 é 64 hex');
+  assert(Array.isArray(PHP_DOWNLOAD_URLS) && PHP_DOWNLOAD_URLS.length >= 1
+    && PHP_DOWNLOAD_URLS.every((u) => u.endsWith(PHP_ZIP_NAME)), 'URLs terminam no zip fixado');
+  console.log('constantes ok');
 
   console.log('\nphp-smoke OK');
 }
