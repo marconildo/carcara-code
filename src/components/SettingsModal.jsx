@@ -6,7 +6,7 @@ import { Switch } from './ui/switch.jsx';
 import { Button } from './ui/button.jsx';
 import { useDependencyStatus, DependencyCards } from './SetupScreen.jsx';
 import { cn } from '@/lib/utils';
-import { AI_OPTIONS, OPT, CliBadge } from '@/lib/aiOptions.jsx';
+import { AI_OPTIONS, CliBadge } from '@/lib/aiOptions.jsx';
 import ygorPhoto from '@/assets/ygor/ygor-andrade.jpg';
 import { useT, useLang } from '@/lib/i18n';
 import { updateView } from '@/lib/updateView';

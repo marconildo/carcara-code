@@ -349,7 +349,6 @@ ipcMain.handle('setup:isDone', () => !!loadConfig().setupDone);
 ipcMain.handle('setup:markDone', () => { const c = loadConfig(); c.setupDone = true; saveConfig(c); return { ok: true }; });
 
 // ---------- CLI de IA (Claude Code / OpenCode / Antigravity / custom) ----------
-const AI_CLIS = { claude: 'claude', opencode: 'opencode', agy: 'agy', codex: 'codex' };
 
 // O Claude Code guarda o transcript em ~/.claude/projects/<projeto>/<id>.jsonl.
 // Procura esse arquivo (em qualquer projeto) E confirma que tem conversa de verdade
@@ -492,6 +491,8 @@ ipcMain.handle('ai:set', (evt, { projectPath, ais, custom }) => {
 ipcMain.handle('session:setCli', (evt, { projectPath, sessionId, cli }) => {
   const c = loadConfig();
   const s = getSessionMeta(c, projectPath, sessionId);
+  // { ok: false } = sessão não encontrada (getSessionMeta null); não deveria acontecer hoje, pois
+  // sessions:create persiste o meta antes de o renderer conseguir chamar setCli.
   if (!s) return { ok: false };
   if (aiCli.VALID_CLIS.includes(cli) && s.cli !== cli) { s.cli = cli; saveConfig(c); }
   return { ok: true };

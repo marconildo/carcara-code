@@ -18,6 +18,7 @@ export const OPT = Object.fromEntries(AI_OPTIONS.map((o) => [o.key, o]));
 export function CliBadge({ optKey, small }) {
   const o = OPT[optKey] || OPT.custom;
   const Icon = o.Icon;
+  // Logo colorido (tem fundo próprio) preenche o badge sem o quadrado tingido.
   if (o.fullColor) {
     return <Icon className={cn('shrink-0 rounded', small ? 'size-4' : 'size-5')} />;
   }
