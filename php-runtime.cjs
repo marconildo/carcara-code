@@ -81,7 +81,7 @@ function downloadTo(url, destPath, redirectsLeft = 5) {
       if (statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${statusCode} ao baixar ${url}`)); }
       const out = fs.createWriteStream(destPath);
       res.pipe(out);
-      res.on('error', () => out.destroy());
+      res.on('error', (e) => { out.destroy(); reject(e); });
       out.on('finish', () => out.close(() => resolve()));
       out.on('error', reject);
     });
