@@ -833,6 +833,20 @@ export function ChatPanel({ activeProject, controlsRef }) {
   // --- Arrastar arquivo(s) da árvore pra dentro do terminal ---
   // Só reage ao tipo customizado da árvore (MOVE_MIME); arrasto de aba usa
   // 'text/plain' e é ignorado aqui, então os dois convivem sem conflito.
+
+  // Rede de segurança: se o arrasto for cancelado (Esc) ou solto fora da janela,
+  // nem onFilePathDrop nem onFilePathDragLeave disparam pra limpar o anel — o
+  // 'drop' não acontece e o 'dragleave' pode não bater (o ponteiro pode estar
+  // sobre o xterm filho quando o arrasto termina). 'dragend' fecha arrasto
+  // cancelado/abortado que não dispara drop nem dragleave no pane — mesmo
+  // motivo do onTreeDragEnd da árvore (CodeView.jsx) — e sempre borbulha até a
+  // window ao fim de qualquer arrasto, então serve pra limpar o realce preso.
+  useEffect(() => {
+    const onDragEnd = () => setFileDropPane(null);
+    window.addEventListener('dragend', onDragEnd);
+    return () => window.removeEventListener('dragend', onDragEnd);
+  }, []);
+
   const onFilePathDragOver = (paneId, e) => {
     if (!e.dataTransfer.types.includes(MOVE_MIME)) return;
     e.preventDefault();
