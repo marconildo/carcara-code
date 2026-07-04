@@ -622,6 +622,7 @@ ipcMain.handle('remotes:add', (evt, { profile, secret }) => {
   const hk = hostKey(uri);
   const c = loadConfig();
   c.remotes = c.remotes || {};
+  c.projects = c.projects || [];
   c.remotes[hk] = {
     host: profile.host, port, user: profile.user,
     authType: profile.authType, keyPath: profile.keyPath || '',
@@ -631,7 +632,9 @@ ipcMain.handle('remotes:add', (evt, { profile, secret }) => {
   saveConfig(c);
   let secretSaved = true;
   if (secret && (profile.authType === 'password' || profile.authType === 'key')) {
-    secretSaved = secretStore.save(hk, secret);
+    // safeStorage.encryptString pode lançar em alguns ambientes; não deixa o "Salvar"
+    // inteiro falhar por causa do segredo — o projeto já foi persistido acima.
+    try { secretSaved = secretStore.save(hk, secret); } catch { secretSaved = false; }
   }
   return { uri, hostKey: hk, secretSaved };
 });

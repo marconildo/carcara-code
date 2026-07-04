@@ -36,13 +36,19 @@ export function RemoteProjectModal({ open, onClose, onAdded }) {
     const v = validateRemoteProfile(p);
     if (!v.ok) { setTest({ ok: false, message: t(v.error) }); return; }
     setBusy(true);
-    const res = await window.api.addRemote(p, secret);
-    setBusy(false);
-    if (res && res.secretSaved === false && (p.authType === 'password' || p.authType === 'key') && secret) {
-      toast(t('remote.warn_secret'));
+    try {
+      const res = await window.api.addRemote(p, secret);
+      if (res && res.secretSaved === false && (p.authType === 'password' || p.authType === 'key') && secret) {
+        toast(t('remote.warn_secret'));
+      }
+      onAdded?.(res && res.uri);
+      onClose?.();
+    } catch (e) {
+      // Não falha em silêncio: mostra o erro (antes o await estourava e o modal só travava).
+      setTest({ ok: false, message: String((e && e.message) || e) });
+    } finally {
+      setBusy(false);
     }
-    onAdded?.(res.uri);
-    onClose?.();
   }
 
   return (
