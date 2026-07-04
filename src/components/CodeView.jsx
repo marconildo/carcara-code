@@ -352,7 +352,7 @@ export function CodeView({ active, openRequest }) {
   const [results, setResults] = useState([]);
   useEffect(() => {
     const q = query.trim();
-    if (!active || !q) { setResults([]); return; }
+    if (!active || active.remote || !q) { setResults([]); return; }
     let alive = true;
     const t = setTimeout(() => {
       window.api.searchFiles(active.path, q).then((r) => { if (alive) setResults(r || []); });
@@ -738,6 +738,7 @@ export function CodeView({ active, openRequest }) {
                   onKeyDown={(e) => { if (e.key === 'Escape') setQuery(''); }}
                   placeholder={t('tree.search_placeholder')}
                   spellCheck={false}
+                  disabled={!!active?.remote}
                   className="h-7 w-full rounded-md border bg-background pl-7 pr-7 text-[13px] outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
                 />
                 {query && (
