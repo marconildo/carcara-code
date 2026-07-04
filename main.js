@@ -22,6 +22,7 @@ const { SshShell } = require('./remote/sshShell.cjs');
 const { makeSecretStore } = require('./remote/secretStore.cjs');
 const { makeKnownHosts } = require('./remote/knownHosts.cjs');
 const { makeConnections } = require('./remote/connections.cjs');
+const { makeRemoteFs } = require('./remote/remoteFs.cjs');
 const { Client: SshClient } = require('ssh2');
 
 let mainWindow;
@@ -35,6 +36,7 @@ let ptyLib = null;
 let secretStore = null;
 let knownHosts = null;
 let connections = null;
+let remoteFs = null;
 
 const APP_NAME = 'Carcará Code';
 const APP_ICON = path.join(__dirname, 'build', 'icon.png');
@@ -290,6 +292,10 @@ app.whenReady().then(() => {
     confirmHostKey: (hk, fp, state) => confirmHostKey(hk, fp, state),
     onStatus: (hk, status) => safeSend('remote:status', { hostKey: hk, status }),
     agentFor: () => (process.platform === 'win32' ? 'pageant' : process.env.SSH_AUTH_SOCK || ''),
+  });
+  remoteFs = makeRemoteFs({
+    getSftp: (hk) => connections.sftp(hk),
+    isBinaryExt: isBinaryExtForRead,
   });
   registerMediaProtocol();
   // Remove o menu de aplicação padrão do Electron. A barra já fica escondida, mas os
@@ -875,7 +881,8 @@ const BINARY_EXT = new Set([
   '.class', '.jar',
 ]);
 
-ipcMain.handle('fs:dir', (evt, { dirPath }) => {
+ipcMain.handle('fs:dir', async (evt, { dirPath }) => {
+  if (isRemote(dirPath)) { try { return await remoteFs.listDir(dirPath); } catch { return []; } }
   let ents = [];
   try { ents = fs.readdirSync(dirPath, { withFileTypes: true }); } catch { return []; }
   return ents
@@ -907,6 +914,7 @@ function closeFsWatcher() {
   fsWatchedDir = null;
 }
 ipcMain.handle('fs:watch', (evt, { dirPath }) => {
+  if (isRemote(dirPath)) return { ok: true }; // sem watch remoto por ora
   if (dirPath === fsWatchedDir) return { ok: true };
   closeFsWatcher();
   if (!dirPath) return { ok: true };
@@ -944,6 +952,7 @@ function subseqScore(q, text) {
 // do arquivo vale muito mais que casar só no caminho. Limita visita e resultados
 // pra não travar em projetos grandes.
 ipcMain.handle('fs:search', (evt, { root, query, limit = 200 }) => {
+  if (isRemote(root)) return []; // busca remota fica pra depois
   const q = String(query || '').trim().toLowerCase();
   if (!q) return [];
   const out = [];
@@ -1223,7 +1232,16 @@ function xlsxMetaForRenderer(entry, filePath) {
   };
 }
 
+// "Não é texto editável" -> no remoto abrimos como binário (preview remoto fica pra depois).
+function isBinaryExtForRead(ext) {
+  if (IMAGE_EXT.has(ext) || BINARY_EXT.has(ext)) return true;
+  if (ext === '.pdf' || ext === '.xlsx' || ext === '.xlsm' || ext === '.xls') return true;
+  if (mediaCore.mediaKind('x' + ext) || mediaCore.isUnsupportedMedia('x' + ext)) return true;
+  return false;
+}
+
 ipcMain.handle('fs:read', async (evt, { filePath }) => {
+  if (isRemote(filePath)) return remoteFs.readFile(filePath);
   const ext = path.extname(filePath).toLowerCase();
   // Imagens: devolve como data URL pra exibir no visualizador.
   if (IMAGE_EXT.has(ext)) {
