@@ -42,7 +42,7 @@ Formato do snapshot (objeto simples, serializável por IPC):
   sessionId,
   mainAgent: { name: 'main', todos: [...], usage: {...} },
   subagents: [{ id, name, status, todos: [...], usage: {...} }],
-  usage: { porModelo: [...], contexto: { tokens, limite }, cache: {...} },
+  usage: { byModel: [...], context: { tokens, limit }, cache: {...} },
   updatedAt
 }
 // todo: { content, activeForm, status, startedAt?, completedAt? }
