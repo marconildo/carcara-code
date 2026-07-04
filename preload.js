@@ -59,6 +59,11 @@ contextBridge.exposeInMainWorld('api', {
   sessionsClose: (projectPath, sessionId) => ipcRenderer.invoke('sessions:close', { projectPath, sessionId }),
   sessionRefreshTitle: (projectPath, sessionId) => ipcRenderer.invoke('session:refreshTitle', { projectPath, sessionId }),
 
+  // Painel de Tasks: assina a sessão da aba ativa; o snapshot chega pelo push
+  // 'todos:snapshot' via on(...). Uma assinatura por vez (o painel é um só).
+  todosSubscribe: (projectPath, sessionId) => ipcRenderer.invoke('todos:subscribe', { projectPath, sessionId }),
+  todosUnsubscribe: () => ipcRenderer.invoke('todos:unsubscribe'),
+
   // Terminal (Claude Code real) — por sessão
   termEnsure: (sessionId, projectPath, cols, rows, theme) => ipcRenderer.invoke('term:ensure', { sessionId, projectPath, cols, rows, theme }),
   termInput: (sessionId, data) => ipcRenderer.send('term:input', { sessionId, data }),
