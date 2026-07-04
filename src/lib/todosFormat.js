@@ -8,6 +8,8 @@ export function formatCompact(n) {
   for (const u of [{ v: 1000000, s: 'M' }, { v: 1000, s: 'k' }]) {
     if (n >= u.v) {
       const rounded = Math.round((n / u.v) * 10) / 10;
+      // Arredondamento pode estourar pra 1000k — nesse caso vira 1M.
+      if (u.s === 'k' && rounded >= 1000) return '1M';
       const str = rounded % 1 === 0 ? String(rounded) : rounded.toFixed(1).replace('.', ',');
       return str + u.s;
     }

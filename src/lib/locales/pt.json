@@ -590,6 +590,7 @@
     "awaiting_sub": "As tarefas aparecem aqui assim que o agente usar o TodoWrite.",
     "history_divider": "histórico",
     "active_badge": "{count} ativas",
+    "active_badge_one": "1 ativa",
     "elapsed": "decorrido",
     "remaining": "restante",
     "estimate_label": "estimativa",

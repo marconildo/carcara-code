@@ -47,7 +47,7 @@ export function AgentSection({ agent, defaultExpanded = true, history = false, n
           <span className="tabular-nums text-muted-foreground">{completed}/{total}</span>
           {inProgress > 0 && (
             <span className="rounded-full bg-primary/15 px-2 py-px font-semibold text-primary">
-              {t('todos.active_badge', { count: inProgress })}
+              {inProgress === 1 ? t('todos.active_badge_one') : t('todos.active_badge', { count: inProgress })}
             </span>
           )}
         </span>

@@ -11,6 +11,7 @@ describe('formatCompact', () => {
     expect(formatCompact(7361)).toBe('7,4k');
     expect(formatCompact(24580)).toBe('24,6k');
     expect(formatCompact(2000000)).toBe('2M');
+    expect(formatCompact(999999)).toBe('1M');
   });
 });
 

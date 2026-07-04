@@ -590,6 +590,7 @@
     "awaiting_sub": "Tasks will show up here as soon as the agent uses TodoWrite.",
     "history_divider": "history",
     "active_badge": "{count} active",
+    "active_badge_one": "1 active",
     "elapsed": "elapsed",
     "remaining": "remaining",
     "estimate_label": "estimate",

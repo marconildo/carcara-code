@@ -83,14 +83,17 @@ export function UsageTable({ usage }) {
         </thead>
         <tbody>
           {byAgent
-            ? usage.byAgent.flatMap((agent) => agent.models.map((m, i) => (
-              <tr key={agent.agentId + m.model} title={`${agent.name}\n${m.model}`}>
-                <td className="max-w-0 truncate px-2 py-1">{i === 0 ? agent.name + ' ' : ''}<span className="text-muted-foreground">{shortModel(m.model)}</span></td>
+            ? usage.byAgent.flatMap((agent) => {
+              const agentName = agent.isMain ? t('todos.main_agent') : agent.name;
+              return agent.models.map((m, i) => (
+              <tr key={agent.agentId + m.model} title={`${agentName}\n${m.model}`}>
+                <td className="max-w-0 truncate px-2 py-1">{i === 0 ? agentName + ' ' : ''}<span className="text-muted-foreground">{shortModel(m.model)}</span></td>
                 <td className={num} title={String(m.input)}>{formatCompact(m.input)}</td>
                 <td className={num} title={String(m.output)}>{formatCompact(m.output)}</td>
                 <td className={num} title={String(m.cache)}>{formatCompact(m.cache)}</td>
               </tr>
-            )))
+              ));
+            })
             : usage.byModel.map((m) => (
               <tr key={m.model} title={m.model}>
                 <td className="max-w-0 truncate px-2 py-1">{shortModel(m.model)}</td>
