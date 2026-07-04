@@ -81,7 +81,7 @@ Formato do snapshot (objeto simples, serializável por IPC):
 - Transcript inexistente/ilegível ⇒ estado vazio "sem sessão", nunca crash.
 - Linha JSONL malformada ⇒ ignorada (try/catch por linha, como `claude-sessions.cjs` já faz).
 - Sessão sem eventos de todo ⇒ estado "aguardando tasks".
-- Subagent `.jsonl` sem match no transcript principal ⇒ exibido com nome fallback (não descartado).
+- Subagent `.jsonl` sem match no transcript principal ⇒ descartado (sem a invocação não há nome/status confiável — mesmo comportamento da extensão original).
 
 ## Testes
 
