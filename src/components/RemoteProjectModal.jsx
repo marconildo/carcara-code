@@ -3,7 +3,9 @@ import { validateRemoteProfile } from '@/lib/remoteProfile.js';
 import { useT } from '@/lib/i18n';
 import { toast } from '@/lib/toast.js';
 
-const EMPTY = { host: '', port: 22, user: '', authType: 'key', keyPath: '', remoteDir: '', label: '' };
+// Padrão = senha (o caminho mais comum, estilo Termius). Chave/passphrase ficam atrás
+// de um link discreto. Diretório remoto é opcional (em branco = pasta home).
+const EMPTY = { host: '', port: 22, user: '', authType: 'password', keyPath: '', remoteDir: '', label: '' };
 
 export function RemoteProjectModal({ open, onClose, onAdded }) {
   const t = useT();
@@ -12,17 +14,19 @@ export function RemoteProjectModal({ open, onClose, onAdded }) {
   const [test, setTest] = useState(null); // { ok, message }
   const [busy, setBusy] = useState(false);
   const [hosts, setHosts] = useState(null);
+  const [useKey, setUseKey] = useState(false); // avançado: autenticar por chave em vez de senha
   if (!open) return null;
   const set = (k) => (e) => setP((v) => ({ ...v, [k]: e.target.value }));
 
   async function importConfig() {
     const { hosts } = await window.api.sshConfigHosts();
-    setHosts(hosts);
+    setHosts(hosts || []);
   }
   function pickHost(h) {
     setP((v) => ({ ...v, host: h.hostName || h.host, user: h.user || v.user,
-      port: h.port || 22, authType: h.identityFile ? 'key' : v.authType,
+      port: h.port || 22, authType: h.identityFile ? 'key' : 'password',
       keyPath: h.identityFile || v.keyPath, label: h.host }));
+    if (h.identityFile) setUseKey(true);
     setHosts(null);
   }
   async function doTest() {
@@ -51,45 +55,59 @@ export function RemoteProjectModal({ open, onClose, onAdded }) {
     }
   }
 
+  const input = 'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="w-[460px] rounded-xl border border-border bg-background p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-3 text-lg font-semibold">{t('remote.title')}</h2>
-        <button className="mb-3 text-sm text-primary underline" onClick={importConfig} disabled={busy}>{t('remote.import_config')}</button>
-        {hosts && (
-          <ul className="mb-3 max-h-32 overflow-auto rounded border border-border">
-            {hosts.length === 0 && <li className="p-2 text-sm text-muted-foreground">{t('remote.no_hosts')}</li>}
+      <div className="w-[440px] max-w-[92vw] rounded-2xl border border-border bg-background p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold">{t('remote.title')}</h2>
+        <button className="mb-4 text-xs text-primary underline" onClick={importConfig} disabled={busy}>{t('remote.import_config')}</button>
+
+        {/* Lista do ~/.ssh/config só aparece quando há hosts (nada de "nenhum host" na cara). */}
+        {hosts && hosts.length > 0 && (
+          <ul className="mb-3 max-h-32 overflow-auto rounded-lg border border-border">
             {hosts.map((h) => (
               <li key={h.host}><button className="w-full p-2 text-left text-sm hover:bg-muted" onClick={() => pickHost(h)}>{h.host} — {h.hostName || '?'}</button></li>
             ))}
           </ul>
         )}
-        <div className="grid grid-cols-2 gap-2">
-          <input className="col-span-2 rounded border border-border bg-background p-2 text-sm" placeholder={t('remote.ph_host')} value={p.host} onChange={set('host')} />
-          <input className="rounded border border-border bg-background p-2 text-sm" placeholder={t('remote.ph_user')} value={p.user} onChange={set('user')} />
-          <input className="rounded border border-border bg-background p-2 text-sm" placeholder={t('remote.ph_port')} value={p.port} onChange={set('port')} />
-          <select className="col-span-2 rounded border border-border bg-background p-2 text-sm" value={p.authType} onChange={set('authType')}>
-            <option value="key">{t('remote.auth_key')}</option>
-            <option value="password">{t('remote.auth_password')}</option>
-            <option value="agent">{t('remote.auth_agent')}</option>
-          </select>
-          {p.authType === 'key' && (
-            <input className="col-span-2 rounded border border-border bg-background p-2 text-sm" placeholder={t('remote.ph_keypath')} value={p.keyPath} onChange={set('keyPath')} />
-          )}
-          {(p.authType === 'password' || p.authType === 'key') && (
-            <input type="password" className="col-span-2 rounded border border-border bg-background p-2 text-sm" placeholder={p.authType === 'key' ? t('remote.ph_passphrase') : t('remote.ph_password')} value={secret} onChange={(e) => setSecret(e.target.value)} />
-          )}
-          <input className="col-span-2 rounded border border-border bg-background p-2 text-sm" placeholder={t('remote.ph_remotedir')} value={p.remoteDir} onChange={set('remoteDir')} />
-          <input className="col-span-2 rounded border border-border bg-background p-2 text-sm" placeholder={t('remote.ph_label')} value={p.label} onChange={set('label')} />
+
+        {/* Servidor */}
+        <input className={input + ' mb-2'} placeholder={t('remote.ph_host')} value={p.host} onChange={set('host')} autoFocus />
+        <div className="mb-3 grid grid-cols-[1fr_90px] gap-2">
+          <input className={input} placeholder={t('remote.ph_user')} value={p.user} onChange={set('user')} />
+          <input className={input} placeholder={t('remote.ph_port')} value={p.port} onChange={set('port')} />
         </div>
+
+        {/* Credenciais: senha por padrão; chave atrás de um link. */}
+        {!useKey ? (
+          <>
+            <input type="password" className={input} placeholder={t('remote.ph_password')} value={secret}
+              onChange={(e) => { setSecret(e.target.value); setP((v) => ({ ...v, authType: 'password' })); }} />
+            <button type="button" className="mb-3 mt-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => { setUseKey(true); setP((v) => ({ ...v, authType: 'key' })); }}>{t('remote.use_key')}</button>
+          </>
+        ) : (
+          <>
+            <input className={input + ' mb-2'} placeholder={t('remote.ph_keypath')} value={p.keyPath} onChange={set('keyPath')} />
+            <input type="password" className={input} placeholder={t('remote.ph_passphrase')} value={secret} onChange={(e) => setSecret(e.target.value)} />
+            <button type="button" className="mb-3 mt-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => { setUseKey(false); setP((v) => ({ ...v, authType: 'password' })); }}>{t('remote.use_password')}</button>
+          </>
+        )}
+
+        {/* Opcionais */}
+        <input className={input + ' mb-2'} placeholder={t('remote.ph_remotedir_opt')} value={p.remoteDir} onChange={set('remoteDir')} />
+        <input className={input} placeholder={t('remote.ph_label')} value={p.label} onChange={set('label')} />
+
         {test && (
-          <p className={`mt-2 text-sm ${test.ok ? 'text-green-600' : 'text-red-500'}`}>{test.ok ? '✓ ' : '✗ '}{test.message}</p>
+          <p className={`mt-3 text-sm ${test.ok ? 'text-green-600' : 'text-red-500'}`}>{test.ok ? '✓ ' : '✗ '}{test.message}</p>
         )}
         <div className="mt-4 flex justify-between">
-          <button className="rounded border border-border px-3 py-1.5 text-sm" onClick={doTest} disabled={busy}>{t('remote.test_btn')}</button>
+          <button type="button" className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted" onClick={doTest} disabled={busy}>{t('remote.test_btn')}</button>
           <div className="flex gap-2">
-            <button className="rounded border border-border px-3 py-1.5 text-sm" onClick={onClose} disabled={busy}>{t('remote.cancel')}</button>
-            <button className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground" onClick={save} disabled={busy}>{t('remote.save')}</button>
+            <button type="button" className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted" onClick={onClose} disabled={busy}>{t('remote.cancel')}</button>
+            <button type="button" className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90" onClick={save} disabled={busy}>{t('remote.save')}</button>
           </div>
         </div>
       </div>

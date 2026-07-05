@@ -622,26 +622,38 @@ ipcMain.handle('projects:add', async () => {
 
 // Cadastra/atualiza um projeto remoto. profile: { host, port, user, authType,
 // keyPath, remoteDir, label }. secret: senha ou passphrase (opcional).
-ipcMain.handle('remotes:add', (evt, { profile, secret }) => {
+ipcMain.handle('remotes:add', async (evt, { profile, secret }) => {
   const port = parseInt(profile.port, 10) || 22;
-  const uri = buildSshUri({ user: profile.user, host: profile.host, port, remoteDir: profile.remoteDir });
-  const hk = hostKey(uri);
+  const hk = `${profile.user}@${profile.host}:${port}`;
   const c = loadConfig();
   c.remotes = c.remotes || {};
   c.projects = c.projects || [];
   c.remotes[hk] = {
     host: profile.host, port, user: profile.user,
     authType: profile.authType, keyPath: profile.keyPath || '',
-    remoteDir: profile.remoteDir || '/', label: profile.label || '',
+    remoteDir: (profile.remoteDir || '').trim(), label: profile.label || '',
   };
-  if (!c.projects.includes(uri)) c.projects.push(uri);
   saveConfig(c);
+  // Segredo primeiro, pra o connFor conseguir autenticar ao resolver a home.
   let secretSaved = true;
   if (secret && (profile.authType === 'password' || profile.authType === 'key')) {
     // safeStorage.encryptString pode lançar em alguns ambientes; não deixa o "Salvar"
-    // inteiro falhar por causa do segredo — o projeto já foi persistido acima.
+    // inteiro falhar por causa do segredo.
     try { secretSaved = secretStore.save(hk, secret); } catch { secretSaved = false; }
   }
+  // Diretório em branco = pasta home: resolve via SFTP (realpath do '.'). Se falhar,
+  // cai em '/' pra não travar o cadastro.
+  let remoteDir = (profile.remoteDir || '').trim();
+  if (!remoteDir) {
+    try {
+      const sftp = await connections.sftp(hk);
+      remoteDir = await new Promise((resolve, reject) => sftp.realpath('.', (err, p) => (err ? reject(err) : resolve(p))));
+    } catch { remoteDir = '/'; }
+    c.remotes[hk].remoteDir = remoteDir;
+    saveConfig(c);
+  }
+  const uri = buildSshUri({ user: profile.user, host: profile.host, port, remoteDir });
+  if (!c.projects.includes(uri)) { c.projects.push(uri); saveConfig(c); }
   return { uri, hostKey: hk, secretSaved };
 });
 
