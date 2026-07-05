@@ -629,7 +629,7 @@ export function CodeView({ active, openRequest }) {
   }, []);
   // Com autosave ligado, salva os arquivos sujos pouco depois da última digitação (debounce).
   useEffect(() => {
-    if (!autoSave) return;
+    if (!autoSave || active?.remote) return;
     const dirty = tabs.filter((t) => t.dirty && !t.notice);
     if (!dirty.length) return;
     const id = setTimeout(async () => {
