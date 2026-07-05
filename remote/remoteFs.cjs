@@ -51,7 +51,52 @@ function makeRemoteFs({ getSftp, isBinaryExt }) {
     } catch (err) { return { error: String((err && err.message) || err) }; }
   }
 
-  return { listDir, readFile };
+  function call(fn) { return new Promise((resolve, reject) => fn((err, v) => (err ? reject(err) : resolve(v)))); }
+  const wrap = async (fn) => { try { return await fn(); } catch (err) { return { error: String((err && err.message) || err) }; } };
+
+  function writeFile(uri, content) {
+    return wrap(async () => {
+      const sftp = await sftpOf(uri);
+      await call((cb) => sftp.writeFile(remotePathOf(uri), Buffer.from(content, 'utf8'), cb));
+      return { ok: true };
+    });
+  }
+  function createFile(uri) {
+    return wrap(async () => {
+      const sftp = await sftpOf(uri);
+      await call((cb) => sftp.writeFile(remotePathOf(uri), Buffer.from('', 'utf8'), cb));
+      return { ok: true, path: uri };
+    });
+  }
+  function mkdir(uri) {
+    return wrap(async () => {
+      const sftp = await sftpOf(uri);
+      await call((cb) => sftp.mkdir(remotePathOf(uri), cb));
+      return { ok: true, path: uri };
+    });
+  }
+  function rename(uri, newName) {
+    const name = String(newName || '').trim();
+    if (!name || name.includes('/') || name.includes('\\')) return Promise.resolve({ error: 'nome inválido' });
+    return wrap(async () => {
+      const sftp = await sftpOf(uri);
+      const from = remotePathOf(uri);
+      const to = path.posix.join(path.posix.dirname(from), name);
+      await call((cb) => sftp.rename(from, to, cb));
+      return { ok: true, path: withDir(uri, to) };
+    });
+  }
+  function remove(uri) {
+    return wrap(async () => {
+      const sftp = await sftpOf(uri);
+      const p = remotePathOf(uri);
+      const isDir = await call((cb) => sftp.stat(p, cb)).then((st) => st.isDirectory());
+      await call((cb) => (isDir ? sftp.rmdir(p, cb) : sftp.unlink(p, cb)));
+      return { ok: true };
+    });
+  }
+
+  return { listDir, readFile, writeFile, createFile, mkdir, rename, remove };
 }
 
 module.exports = { makeRemoteFs };

@@ -69,3 +69,46 @@ describe('remoteFs.readFile', () => {
     expect(r.error).toMatch(/grande/);
   });
 });
+
+describe('remoteFs escrita', () => {
+  function spySftp() {
+    return {
+      calls: [],
+      writeFile(p, data, cb) { this.calls.push(['writeFile', p, data.toString()]); cb(null); },
+      mkdir(p, cb) { this.calls.push(['mkdir', p]); cb(null); },
+      rename(a, b, cb) { this.calls.push(['rename', a, b]); cb(null); },
+      unlink(p, cb) { this.calls.push(['unlink', p]); cb(null); },
+      rmdir(p, cb) { this.calls.push(['rmdir', p]); cb(null); },
+      stat(p, cb) { cb(null, { isDirectory: () => this._isDir }); },
+      _isDir: false,
+    };
+  }
+  const mk2 = (sftp) => makeRemoteFs({ getSftp: async () => sftp, isBinaryExt: () => false });
+
+  it('writeFile grava no caminho remoto', async () => {
+    const s = spySftp();
+    expect(await mk2(s).writeFile('ssh://root@h:22/root/a.txt', 'oi')).toEqual({ ok: true });
+    expect(s.calls[0]).toEqual(['writeFile', '/root/a.txt', 'oi']);
+  });
+
+  it('rename move dentro da mesma pasta e devolve a URI nova', async () => {
+    const s = spySftp();
+    const r = await mk2(s).rename('ssh://root@h:22/root/a.txt', 'b.txt');
+    expect(r).toEqual({ ok: true, path: 'ssh://root@h:22/root/b.txt' });
+    expect(s.calls[0]).toEqual(['rename', '/root/a.txt', '/root/b.txt']);
+  });
+
+  it('rename recusa nome com barra', async () => {
+    const r = await mk2(spySftp()).rename('ssh://root@h:22/root/a.txt', 'x/y');
+    expect(r.error).toMatch(/inválido/);
+  });
+
+  it('remove usa rmdir em pasta e unlink em arquivo', async () => {
+    const s = spySftp(); s._isDir = true;
+    await mk2(s).remove('ssh://root@h:22/root/pasta');
+    expect(s.calls[0][0]).toBe('rmdir');
+    const s2 = spySftp();
+    await mk2(s2).remove('ssh://root@h:22/root/a.txt');
+    expect(s2.calls[0][0]).toBe('unlink');
+  });
+});
