@@ -462,6 +462,45 @@ export function CodeView({ active, openRequest, visible = true }) {
       clearTimeout(t);
     };
   }, [query, active, refresh]);
+
+  // ── Escopo por projeto ──────────────────────────────────────────────────────
+  // O CodeView fica MONTADO o tempo todo (não remonta ao trocar de projeto, pra não
+  // perder as abas ao alternar Código ↔ Preview). Sem isto, o estado do editor (abas,
+  // busca, seleção da árvore) seria compartilhado por TODOS os projetos e vazaria de um
+  // pro outro. Guardamos um snapshot por projeto e trocamos quando `active.path` muda —
+  // aqui no corpo do render (padrão do React pra derivar estado de uma prop), pra nunca
+  // chegar a pintar o estado do projeto errado.
+  const stashRef = useRef(new Map()); // projectPath -> snapshot do editor
+  const [projectPath, setProjectPath] = useState(active?.path ?? null);
+  if ((active?.path ?? null) !== projectPath) {
+    if (projectPath != null) {
+      stashRef.current.set(projectPath, {
+        tabs,
+        activePath,
+        rawEnv,
+        mdEdit,
+        htmlPreview,
+        csvGrid,
+        query,
+        selected,
+        selItems,
+        anchorPath,
+      });
+    }
+    const snap = active?.path != null ? stashRef.current.get(active.path) : null;
+    setProjectPath(active?.path ?? null);
+    setTabs(snap?.tabs ?? []);
+    setActivePath(snap?.activePath ?? null);
+    setRawEnv(snap?.rawEnv ?? new Set());
+    setMdEdit(snap?.mdEdit ?? new Set());
+    setHtmlPreview(snap?.htmlPreview ?? new Set());
+    setCsvGrid(snap?.csvGrid ?? new Set());
+    setQuery(snap?.query ?? '');
+    setSelected(snap?.selected ?? null);
+    setSelItems(snap?.selItems ?? new Map());
+    setAnchorPath(snap?.anchorPath ?? null);
+  }
+
   const [treeDragOver, setTreeDragOver] = useState(false);
   // Arrastar-soltar INTERNO (mover dentro da árvore). dragItemsRef guarda os itens
   // sendo arrastados (1 ou vários, da seleção); dragActive liga o realce de alvo.
