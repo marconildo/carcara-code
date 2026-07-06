@@ -3,8 +3,8 @@
 // Embrulha o node-pty no contrato SessionTransport. Comportamento idêntico ao
 // pty.spawn que existia inline no main.js.
 class LocalPty {
-  constructor({ ptyLib, shell, env, cwd, cols, rows }) {
-    this.proc = ptyLib.spawn(shell, [], {
+  constructor({ ptyLib, shell, shellArgs, env, cwd, cols, rows }) {
+    this.proc = ptyLib.spawn(shell, shellArgs || [], {
       name: 'xterm-256color',
       cols: cols || 80,
       rows: rows || 24,

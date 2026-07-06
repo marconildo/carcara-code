@@ -30,6 +30,7 @@ const { initUpdater } = require('./updater.cjs');
 const phpRuntime = require('./php-runtime.cjs');
 const { reconcile: reconcileRail } = require('./rail-core.cjs');
 const { LocalPty } = require('./remote/localPty.cjs');
+const platform = require('./platform.cjs');
 const { isRemote, parseSshUri, buildSshUri, hostKey } = require('./remote/sshUri.cjs');
 const { parseSshConfig } = require('./remote/sshConfig.cjs');
 const { SshShell } = require('./remote/sshShell.cjs');
@@ -1977,10 +1978,6 @@ ipcMain.handle('fs:paste', async (evt, { srcPath, destDir, move }) => {
 });
 
 // ---------- Terminal (Claude Code de verdade, via node-pty) ----------
-function shellForOS() {
-  if (process.platform === 'win32') return process.env.COMSPEC || 'powershell.exe';
-  return process.env.SHELL || 'bash';
-}
 
 // Ambiente que FORÇA a assinatura (sem chave de API) e limpa a flag do Electron.
 function cleanEnv() {
@@ -2002,7 +1999,8 @@ async function makeTransport(projectPath, cols, rows) {
     }
     return new LocalPty({
       ptyLib: pty,
-      shell: shellForOS(),
+      shell: platform.shellFor(),
+      shellArgs: platform.loginArgsFor(),
       env: cleanEnv(),
       cwd: projectPath,
       cols,
