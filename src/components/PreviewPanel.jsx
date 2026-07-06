@@ -173,7 +173,11 @@ function tabLabel(tab, fallback) {
 // Uma "aba" no estilo VS Code / Claude Code: encostada na vizinha, com uma listrinha
 // da cor da brasa em cima da ATIVA e o fundo dela igual ao do conteúdo (pra "saltar").
 // Clique = ativa; botão do meio ou ✕ = fecha.
-function TabChip({ label, active, onSelect, onClose, closeTitle }) {
+function TabChip({ label, favicon, active, onSelect, onClose, closeTitle }) {
+  // Favicon da página na aba; cai no globo se não houver ou se a imagem quebrar.
+  const [favBroken, setFavBroken] = useState(false);
+  useEffect(() => setFavBroken(false), [favicon]);
+  const showFav = favicon && !favBroken;
   return (
     <div
       onClick={onSelect}
@@ -193,7 +197,16 @@ function TabChip({ label, active, onSelect, onClose, closeTitle }) {
     >
       {/* Listrinha em cima = qual aba está selecionada (só na ativa). */}
       {active && <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />}
-      <Globe className={cn('size-3.5 shrink-0', active ? 'text-primary' : 'opacity-50')} />
+      {showFav ? (
+        <img
+          src={favicon}
+          alt=""
+          className="size-3.5 shrink-0 rounded-[2px] object-contain"
+          onError={() => setFavBroken(true)}
+        />
+      ) : (
+        <Globe className={cn('size-3.5 shrink-0', active ? 'text-primary' : 'opacity-50')} />
+      )}
       <span className={cn('min-w-0 flex-1 truncate', active && 'font-medium')}>{label}</span>
       <button
         type="button"
@@ -473,7 +486,13 @@ export function PreviewPanel({
     }
     setTabBar({
       activeId: p.activeId,
-      tabs: p.tabs.map((t) => ({ id: t.id, url: t.url, src: t.src, title: t.title })),
+      tabs: p.tabs.map((t) => ({
+        id: t.id,
+        url: t.url,
+        src: t.src,
+        title: t.title,
+        favicon: t.favicon,
+      })),
     });
   }, []);
   const devtoolsHostRef = useRef(null); // div que segura o webview do DevTools
@@ -514,6 +533,7 @@ export function PreviewPanel({
         src: url || '',
         url: url || '',
         title: '',
+        favicon: '',
         canBack: false,
         canFwd: false,
       };
@@ -538,6 +558,7 @@ export function PreviewPanel({
       w.addEventListener('did-navigate', (e) => {
         if (e.url) {
           tab.url = e.url;
+          tab.favicon = ''; // nova página: zera o favicon até o page-favicon-updated chegar
           if (isActiveTab()) setUrl(e.url);
           if (isActiveProject()) refreshTabBar();
         }
@@ -553,6 +574,10 @@ export function PreviewPanel({
       });
       w.addEventListener('page-title-updated', (e) => {
         tab.title = e.title || '';
+        if (isActiveProject()) refreshTabBar();
+      });
+      w.addEventListener('page-favicon-updated', (e) => {
+        tab.favicon = (e.favicons && e.favicons[0]) || '';
         if (isActiveProject()) refreshTabBar();
       });
       w.addEventListener('did-fail-load', (e) => {
@@ -1605,6 +1630,7 @@ export function PreviewPanel({
               <TabChip
                 key={tab.id}
                 label={tabLabel(tab, t('preview.tab_untitled'))}
+                favicon={tab.favicon}
                 active={tab.id === tabBar.activeId}
                 onSelect={() => selectTab(tab.id)}
                 onClose={() => closeTab(tab.id)}
