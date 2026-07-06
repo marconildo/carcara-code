@@ -41,4 +41,11 @@ assert(isWin === (process.platform === 'win32'), 'isWin');
 assert(isMac === (process.platform === 'darwin'), 'isMac');
 assert(isLinux === (process.platform === 'linux'), 'isLinux');
 
+// fixLoginPath é no-op seguro fora de darwin/linux (não lança, retorna false)
+const { fixLoginPath } = require('../platform.cjs');
+(async () => {
+  const r = await fixLoginPath('win32');
+  assert(r === false, 'fixLoginPath no-op em win32 -> false');
+})();
+
 console.log('platform-smoke OK');

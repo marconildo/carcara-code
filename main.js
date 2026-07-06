@@ -346,7 +346,8 @@ function createWindow() {
   }, 4000);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await platform.fixLoginPath(); // macOS/Linux: herda o PATH do usuário (acha claude/node/git)
   secretStore = makeSecretStore({
     crypto: safeStorage,
     filePath: path.join(app.getPath('userData'), 'remotes.secrets'),

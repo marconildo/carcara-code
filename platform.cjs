@@ -48,4 +48,30 @@ const isWin = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 const isLinux = process.platform === 'linux';
 
-module.exports = { TABLE, tableFor, shellFor, loginArgsFor, isWin, isMac, isLinux };
+// Corrige o PATH do processo em apps GUI no macOS/Linux (que não herdam o PATH do
+// shell de login). No-op no Windows. Idempotente. `fix-path` é ESM-only, por isso o
+// import dinâmico. Falha em silêncio (retorna false) se a lib não carregar.
+let _pathFixed = false;
+async function fixLoginPath(platform = process.platform) {
+  if (platform !== 'darwin' && platform !== 'linux') return false;
+  if (_pathFixed) return true;
+  try {
+    const mod = await import('fix-path');
+    (mod.default || mod)();
+    _pathFixed = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+module.exports = {
+  TABLE,
+  tableFor,
+  shellFor,
+  loginArgsFor,
+  fixLoginPath,
+  isWin,
+  isMac,
+  isLinux,
+};
