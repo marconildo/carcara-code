@@ -18,7 +18,8 @@
     "test:i18n": "node scripts/i18n-parity.smoke.cjs",
     "test:csv": "node scripts/csv-smoke.cjs",
     "test:php": "node scripts/php-smoke.cjs",
-    "test:rail": "node scripts/rail-smoke.cjs"
+    "test:rail": "node scripts/rail-smoke.cjs",
+    "test:platform": "node scripts/platform-smoke.cjs"
   },
   "lint-staged": {
     "*.{js,jsx,cjs,mjs}": [
