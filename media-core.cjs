@@ -17,6 +17,9 @@ const MIME = {
   '.m4a': 'audio/mp4',
   '.aac': 'audio/aac',
   '.opus': 'audio/ogg',
+  // PDF servido pelo mesmo protocolo de streaming (o leitor nativo do Chromium precisa
+  // do Content-Type correto pra renderizar em iframe; via data: URL ele fica em branco).
+  '.pdf': 'application/pdf',
 };
 
 function extOf(name) {

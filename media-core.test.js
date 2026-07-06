@@ -43,6 +43,7 @@ describe('mimeForMedia', () => {
     expect(mimeForMedia('a.webm')).toBe('video/webm');
     expect(mimeForMedia('a.mp3')).toBe('audio/mpeg');
     expect(mimeForMedia('a.flac')).toBe('audio/flac');
+    expect(mimeForMedia('a.pdf')).toBe('application/pdf');
   });
   it('cai em octet-stream pra desconhecido', () => {
     expect(mimeForMedia('a.xyz')).toBe('application/octet-stream');

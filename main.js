@@ -1683,14 +1683,14 @@ ipcMain.handle('fs:read', async (evt, { filePath }) => {
       return { error: String(err) };
     }
   }
-  // PDF: devolve como data URL pro leitor nativo do Chromium (iframe).
+  // PDF: servido pelo protocolo de streaming (ygc-media://) pro leitor nativo do Chromium.
+  // Antes ia como data: URL, mas o PDFium não renderiza PDF via data: dentro de iframe
+  // (tela em branco). Com uma URL de verdade + Content-Type application/pdf ele abre.
   if (ext === '.pdf') {
     try {
       const st = fs.statSync(filePath);
-      if (st.size > 50 * 1024 * 1024)
-        return { error: 'PDF muito grande (>50MB) pra pré-visualizar' };
-      const buf = fs.readFileSync(filePath);
-      return { pdf: `data:application/pdf;base64,${buf.toString('base64')}`, size: st.size };
+      const url = 'ygc-media://local/?p=' + encodeURIComponent(filePath);
+      return { pdf: url, size: st.size };
     } catch (err) {
       return { error: String(err) };
     }
