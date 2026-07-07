@@ -1848,6 +1848,12 @@ function FileMenu({ menu, clip, actions, selItems, onClose }) {
           />
           <div className="my-1 border-t" />
           <MenuItem
+            icon={ExternalLink}
+            label={t('contextMenu.reveal')}
+            onClick={run(actions.reveal)}
+          />
+          <div className="my-1 border-t" />
+          <MenuItem
             icon={ClipboardPaste}
             label={t('contextMenu.paste')}
             disabled={!clip}
