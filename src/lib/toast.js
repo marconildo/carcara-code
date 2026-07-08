@@ -20,16 +20,29 @@ export function subscribe(fn) {
  * @param {'success'|'error'|'warning'|'info'} [opts.kind='info']
  * @param {string} [opts.title]                Rótulo (eyebrow); cai no padrão do kind.
  * @param {{label:string,onClick:()=>void}} [opts.action]  Ação opcional.
+ * @param {boolean} [opts.copyable]  Se true e não houver `action`, injeta uma ação
+ *   "Copiar" que copia `message` pro clipboard.
  * @param {number} [opts.duration]             ms até sumir; 0 = fica até fechar.
  */
 export function toast(message, opts = {}) {
   const kind = opts.kind || 'info';
+  let action = opts.action;
+  if (opts.copyable && !action) {
+    action = {
+      label: 'Copiar',
+      onClick: () => {
+        const text = String(message);
+        if (typeof window !== 'undefined' && window.api?.copyText) window.api.copyText(text);
+        else if (typeof navigator !== 'undefined') navigator.clipboard?.writeText(text);
+      },
+    };
+  }
   const t = {
     id: ++counter,
     message,
     kind,
     title: opts.title,
-    action: opts.action,
+    action,
     duration: opts.duration ?? (kind === 'error' ? 7000 : 2800),
   };
   listeners.forEach((fn) => fn(t));

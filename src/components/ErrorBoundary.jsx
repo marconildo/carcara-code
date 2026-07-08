@@ -2,6 +2,7 @@ import { Component, useState } from 'react';
 import { Bug, RotateCw, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button.jsx';
 import { tStatic } from '@/lib/i18n';
+import { formatErrorPayload } from '@/lib/errorReport.js';
 
 // Gera um código curto e estável a partir do erro, pra pessoa reportar ("deu o ERR-1A2B3C4D").
 // Mesmo erro → mesmo código, então dá pra comparar/agrupar sem precisar do stack inteiro.
@@ -23,7 +24,12 @@ function PanelError({ label, error, onRetry }) {
   const stack = (error && error.stack) || '';
 
   const copy = async () => {
-    const payload = `[${code}] ${label || tStatic('error.panel_label')}\n${message}\n\n${stack}`;
+    const payload = formatErrorPayload({
+      code,
+      label: label || tStatic('error.panel_label'),
+      message,
+      stack,
+    });
     try {
       if (window.api?.copyText) await window.api.copyText(payload);
       else await navigator.clipboard.writeText(payload);
