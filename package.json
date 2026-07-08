@@ -150,6 +150,7 @@
     "detect-port": "^2.1.0",
     "electron-updater": "^6.8.9",
     "exceljs": "^4.4.0",
+    "fabric": "^7.4.0",
     "fix-path": "^5.0.0",
     "highlight.js": "^11.11.1",
     "httpsnippet": "^3.0.10",

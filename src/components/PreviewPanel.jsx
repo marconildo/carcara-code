@@ -44,6 +44,7 @@ import { INJECT, CLEANUP, GRAB_SENTINEL, GRAB_CANCEL } from '@/lib/grabScript';
 import { INJECT as TOUCH_INJECT, CLEANUP as TOUCH_CLEANUP } from '@/lib/touchCursorScript';
 import { rectFromDrag } from '@/lib/screenshot';
 import { useT } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 
 // Faz os botões laterais do mouse (voltar/avançar) funcionarem dentro do preview.
 // O Electron não identifica esses botões no input-event do main (button=undefined),
@@ -76,6 +77,8 @@ const CheckpointsPanel = lazy(() =>
   import('./CheckpointsPanel.jsx').then((m) => ({ default: m.CheckpointsPanel })),
 );
 const TodosPanel = lazy(() => import('./TodosPanel.jsx').then((m) => ({ default: m.TodosPanel })));
+// Anotador do print (Fabric.js): code-split — só carrega quando há uma captura pra marcar.
+const AnnotatorModal = lazy(() => import('./AnnotatorModal.jsx'));
 
 // Fallback enquanto o chunk do painel carrega (costuma ser instantâneo no disco).
 function PanelFallback() {
@@ -425,7 +428,8 @@ export function PreviewPanel({
   const [findOpen, setFindOpen] = useState(false); // barra "buscar na página" (Ctrl+F)
   const [findNonce, setFindNonce] = useState(0); // bump a cada Ctrl+F: re-foca o input da busca
   const [shooting, setShooting] = useState(false); // modo "print do preview" ativo
-  const [shot, setShot] = useState(false); // toast "Print copiado!"
+  const [shot, setShot] = useState(null); // dataURL da captura crua → abre o anotador
+  const [shotDone, setShotDone] = useState(false); // toast "Print copiado!"
   const [shotRect, setShotRect] = useState(null); // rubber-band do arraste (coords do overlay), null quando não arrastando
   const shootStartRef = useRef(null); // { cx, cy } início do arraste (coords de tela)
   const overlayRef = useRef(null); // camada do print (pra medir e desenhar o retângulo)
@@ -829,7 +833,8 @@ export function PreviewPanel({
   // O overlay (camada do app) captura o gesto de recorte; a captura em si roda no main
   // via webContents.capturePage e cai no clipboard.
 
-  // Captura o webview ativo (rect = null → tela toda) e mostra o toast no sucesso.
+  // Captura o webview ativo (rect = null → tela toda) SEM copiar: abre o anotador com a
+  // imagem crua. Copiar (com ou sem marcações) acontece no modal.
   const doCapture = useCallback(
     async (rect) => {
       const w = active && activeWebviewOf(active.path);
@@ -839,11 +844,9 @@ export function PreviewPanel({
         id = w.getWebContentsId();
       } catch {}
       if (id == null) return;
-      const res = await window.api.capturePreview(id, rect);
-      if (res && res.ok) {
-        setShot(true);
-        setTimeout(() => setShot(false), 2200);
-      }
+      const res = await window.api.capturePreview(id, rect, { toClipboard: false });
+      if (res && res.dataURL) setShot(res.dataURL);
+      else toast.error('Não consegui capturar o preview');
     },
     [active],
   );
@@ -1779,19 +1782,37 @@ export function PreviewPanel({
               )}
             </div>
           )}
-          {inPreview && (shooting || shot) && (
+          {inPreview && (shooting || shotDone) && (
             <div className="pointer-events-none absolute inset-x-0 top-3 z-40 flex justify-center">
               <div
                 className={cn(
                   'rounded-full border px-3 py-1.5 text-xs font-medium shadow-md',
-                  shot
+                  shotDone
                     ? 'border-primary/40 bg-primary text-primary-foreground'
                     : 'bg-popover text-popover-foreground',
                 )}
               >
-                {shot ? t('preview.shot_done') : t('preview.shot_active')}
+                {shotDone ? t('preview.shot_done') : t('preview.shot_active')}
               </div>
             </div>
+          )}
+          {shot && (
+            <Suspense fallback={null}>
+              <AnnotatorModal
+                dataURL={shot}
+                onClose={() => setShot(null)}
+                onCopy={async (png) => {
+                  const res = await window.api.copyImage(png);
+                  setShot(null);
+                  if (res && res.ok) {
+                    setShotDone(true);
+                    setTimeout(() => setShotDone(false), 2200);
+                  } else {
+                    toast.error('Não consegui copiar a imagem');
+                  }
+                }}
+              />
+            </Suspense>
           )}
           {inPreview && mode === 'log' && (
             <pre

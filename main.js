@@ -1915,15 +1915,31 @@ ipcMain.handle('clip:read', () => {
 // Print do preview: captura o <webview> (inteiro ou um recorte) e joga a imagem no
 // clipboard. `rect` null = viewport visível inteiro; senão { x, y, width, height } em
 // DIP relativo ao topo-esquerda do webview (mesma unidade do getBoundingClientRect).
-ipcMain.handle('preview:capture', async (evt, { webContentsId, rect }) => {
+ipcMain.handle('preview:capture', async (evt, { webContentsId, rect, toClipboard = true }) => {
   try {
     const wc = webContents.fromId(webContentsId);
     if (!wc) return { error: 'no-webcontents' };
     const img = await wc.capturePage(rect || undefined);
     if (!img || img.isEmpty()) return { error: 'empty' };
-    clipboard.writeImage(img);
     const size = img.getSize();
-    return { ok: true, width: size.width, height: size.height };
+    if (toClipboard) {
+      clipboard.writeImage(img);
+      return { ok: true, width: size.width, height: size.height };
+    }
+    return { ok: true, dataURL: img.toDataURL(), width: size.width, height: size.height };
+  } catch (err) {
+    return { error: String(err) };
+  }
+});
+
+// Copia uma imagem já pronta (dataURL PNG) pro clipboard — usada pelo anotador do print,
+// que devolve a versão marcada da captura em vez da imagem crua.
+ipcMain.handle('clip:writeImage', (evt, { dataURL }) => {
+  try {
+    const img = nativeImage.createFromDataURL(dataURL);
+    if (!img || img.isEmpty()) return { error: 'empty' };
+    clipboard.writeImage(img);
+    return { ok: true };
   } catch (err) {
     return { error: String(err) };
   }
