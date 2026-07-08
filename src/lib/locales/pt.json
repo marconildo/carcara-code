@@ -618,7 +618,10 @@
     "layoutPresetRL": "Rail à direita, Claude à esquerda",
     "layoutPresetRR": "Rail e Claude à direita",
     "aboutVersionLabel": "Versão instalada",
-    "checkUpdates": "Verificar atualizações"
+    "checkUpdates": "Verificar atualizações",
+    "contributeTitle": "Deseja subir alguma correção?",
+    "contributeBody": "O Carcará Code é open source. Se você corrigiu um bug ou melhorou algo, abra um Pull Request no GitHub — sua contribuição é bem-vinda.",
+    "contributeButton": "Contribuir no GitHub"
   },
   "aiPicker": {
     "title": "Escolha a IA desta aba",

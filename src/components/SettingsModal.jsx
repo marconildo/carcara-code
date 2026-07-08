@@ -710,6 +710,23 @@ export function SettingsModal({
                   Carcará Code v{appVersion || '—'}
                 </span>
               </div>
+              {/* Contribuir: link pro repo público (PR) */}
+              <div className="mb-5 rounded-lg border border-dashed p-4">
+                <p className="text-sm font-semibold text-foreground">
+                  {t('settings.contributeTitle')}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {t('settings.contributeBody')}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openLink('https://github.com/Yg0rAndrade/carcara-code')}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-muted"
+                >
+                  <GithubIcon className="size-4" />
+                  {t('settings.contributeButton')}
+                </button>
+              </div>
               {/* Atualização: checagem manual + status (espelha a pílula). */}
               {(() => {
                 const v = updateView(update, t);
