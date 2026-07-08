@@ -3,6 +3,26 @@
 Notas de versão do Carcará Code. As versões seguem versionamento semântico
 (`MAJOR.MINOR.PATCH`), da mais nova para a mais antiga.
 
+## [0.1.8] — 2026-07-08
+
+### Features
+
+- Preview: **anotar o print antes de copiar** — capturar uma região abre um editor (Fabric.js) com caneta, seta, retângulo e texto; só depois copia a imagem anotada pro clipboard (antes copiava direto). Carregado sob demanda pra não pesar o boot
+- Preview: **hard reload** — `Ctrl+F5`, `Ctrl+Shift+R` e `Ctrl+Click` no botão recarregam ignorando o cache; segurar `Ctrl` deixa a setinha laranja avisando
+- Preview: **cursor de "toque" no modo celular** — no preview de iPhone o cursor vira uma bolinha de dedo e o clique mostra o marcador de tap, espelhando o seletor de elementos (injeção na página)
+- Código: **"Abrir no Explorador"** também no menu de contexto dos resultados da busca de arquivos (antes só na árvore)
+- Código: **seleção por arrastar (marquee)** — clicar e arrastar na área vazia da árvore seleciona vários arquivos de uma vez, estilo Chrome/desktop
+- Configurações: aba **"Novidades"** com as notas de versão (este arquivo) renderizadas no app; abre sozinha na primeira vez após atualizar
+- Configurações → IA por projeto: **barra de busca**, **ordenação por nome** (padrão/A→Z/Z→A) e ícone dos projetos maior, pra achar o projeto rápido numa lista longa
+- Sobre: seção **"Contribuir"** com link pro repositório público, convidando a abrir Pull Requests
+- Erros: **copiar o erro** de forma consistente (código + mensagem + stack) — payload compartilhado no card de erro e ação "Copiar" nos avisos de erro
+
+### Interno
+
+- Lógica pura extraída e testada (vitest): `errorReport`, `projectFilter`, `changelog`, `marquee`
+- i18n em paridade (pt/en) para todos os textos novos, incluindo o fluxo de anotação
+- Fabric.js isolado em chunk próprio (code-split), fora do bundle de boot
+
 ## [0.1.7] — 2026-07-08
 
 ### Features
