@@ -621,12 +621,12 @@ export function CodeView({ active, openRequest, visible = true }) {
     setDragActive(false);
   };
 
-  const openMenu = (e, item) => {
+  const openMenu = (e, item, extra) => {
     e.preventDefault();
     e.stopPropagation();
     const x = Math.min(e.clientX, window.innerWidth - 220);
     const y = Math.min(e.clientY, window.innerHeight - 300);
-    setMenu({ x, y, item });
+    setMenu({ x, y, item, ...(extra || {}) });
   };
 
   const actions = {
@@ -996,6 +996,14 @@ export function CodeView({ active, openRequest, visible = true }) {
                         key={r.path}
                         type="button"
                         onClick={() => openFile({ path: r.path, name: r.name })}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          openMenu(
+                            e,
+                            { path: r.path, name: r.name, isDir: false },
+                            { revealOnly: true },
+                          );
+                        }}
                         title={r.rel}
                         className={cn(
                           'flex w-full items-center gap-1.5 px-2 py-[3px] text-left text-[13px] hover:bg-muted',
@@ -1820,11 +1828,26 @@ function FileMenu({ menu, clip, actions, selItems, onClose }) {
     };
   }, [menu, onClose]);
   if (!menu) return null;
-  const { x, y, item } = menu;
+  const { x, y, item, revealOnly } = menu;
   const run = (fn) => () => {
     onClose();
     fn(item);
   };
+  if (revealOnly) {
+    return (
+      <div
+        ref={ref}
+        className="fixed z-50 min-w-[200px] overflow-hidden rounded-md border bg-background py-1 shadow-md"
+        style={{ left: x, top: y }}
+      >
+        <MenuItem
+          icon={ExternalLink}
+          label={t('contextMenu.reveal')}
+          onClick={run(actions.reveal)}
+        />
+      </div>
+    );
+  }
   // Quantos itens o "Delete" vai apagar (a seleção inteira se o item clicado fizer parte dela).
   const delCount = selItems?.has(item.path) && selItems.size > 1 ? selItems.size : 1;
   return (
