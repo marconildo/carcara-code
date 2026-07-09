@@ -47,7 +47,8 @@
       "**/*",
       "!.claude/**",
       "!.superpowers/**",
-      "!docs/**"
+      "!docs/**",
+      "!release/**"
     ],
     "npmRebuild": false,
     "asarUnpack": [
