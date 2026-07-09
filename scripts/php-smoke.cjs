@@ -15,7 +15,7 @@ const {
   PHP_DOWNLOAD_URLS,
   PHP_SHA256,
   resolveSystemPhp,
-} = require('../php-runtime.cjs');
+} = require('../electron/php-runtime.cjs');
 
 function assert(cond, msg) {
   if (!cond) throw new Error('ASSERT: ' + msg);
