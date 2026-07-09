@@ -264,9 +264,10 @@ export default function AnnotatorModal({ dataURL, onCopy, onClose }) {
       }}
     >
       <div className="flex max-h-[92vh] max-w-[92vw] flex-col overflow-hidden rounded-lg border bg-card shadow-xl">
-        {/* Palco (em cima) */}
-        <div className="overflow-auto bg-muted/30 p-3">
-          <canvas ref={canvasElRef} className="block" />
+        {/* Palco (em cima): a imagem fica CENTRADA e emoldurada, pra deixar claro que
+            é a captura inteira (não um pedaço) mesmo quando é menor que a barra. */}
+        <div className="grid place-items-center overflow-auto bg-muted/30 p-3">
+          <canvas ref={canvasElRef} className="block rounded ring-1 ring-border" />
         </div>
 
         {/* Toolbar (embaixo) */}
