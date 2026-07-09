@@ -83,6 +83,7 @@ export const INJECT = `(() => {
   function teardown(){
     // Observadores passivos e não-capturantes: só olham, nunca bloqueiam o site.
     document.removeEventListener('mousemove', move);
+    document.removeEventListener('pointermove', move);
     document.removeEventListener('pointerdown', tap);
     document.removeEventListener('mouseleave', leave);
     document.documentElement.style.cursor = prevCursor;
@@ -93,7 +94,11 @@ export const INJECT = `(() => {
     window.__carcaraTouch = null;
   }
 
+  // pointermove além de mousemove: com a emulação de toque ligada (device mode), o
+  // mouse é traduzido em toque e o 'mousemove' pode não disparar — o 'pointermove'
+  // cobre os dois casos. Ambos só reposicionam a bolinha (idempotente).
   document.addEventListener('mousemove', move, { passive: true });
+  document.addEventListener('pointermove', move, { passive: true });
   document.addEventListener('pointerdown', tap, { passive: true });
   // mouseleave em document (não bubbla, mas dispara quando o ponteiro sai da
   // página inteira) — diferente de documentElement, que dispararia a cada saída

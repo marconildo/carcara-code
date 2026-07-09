@@ -634,6 +634,10 @@ export function PreviewPanel({
           try {
             w.executeJavaScript(TOUCH_INJECT);
           } catch {}
+          // Re-afirma a emulação de toque (persiste no debugger, mas garante após navegar).
+          try {
+            window.api.previewEmulateTouch(w.getWebContentsId(), true);
+          } catch {}
         }
       });
       // Ponte do "selecionar elemento": o script injetado emite o pacote via console.
@@ -1236,6 +1240,12 @@ export function PreviewPanel({
     const script = viewport !== 'desktop' ? TOUCH_INJECT : TOUCH_CLEANUP;
     for (const w of allWebviews()) {
       applyViewport(w, viewport);
+      // Emulação de toque (mata o :hover) nos modos celular/tablet; desliga no desktop.
+      let id = null;
+      try {
+        id = w.getWebContentsId();
+      } catch {}
+      if (id != null) window.api.previewEmulateTouch(id, viewport !== 'desktop');
       try {
         w.executeJavaScript(script);
       } catch {}

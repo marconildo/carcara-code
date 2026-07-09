@@ -227,6 +227,10 @@ contextBridge.exposeInMainWorld('api', {
   readText: () => ipcRenderer.invoke('clip:read'),
   capturePreview: (webContentsId, rect, opts) =>
     ipcRenderer.invoke('preview:capture', { webContentsId, rect, ...(opts || {}) }),
+
+  // Liga/desliga a emulação de toque no preview (mata o :hover em celular/tablet).
+  previewEmulateTouch: (webContentsId, enabled) =>
+    ipcRenderer.invoke('preview:touchEmu', { webContentsId, enabled }),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', { url }),
 
   // Drag and drop de arquivos

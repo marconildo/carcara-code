@@ -494,6 +494,14 @@ app.on('web-contents-created', (_event, contents) => {
   contents.on('focus', () => safeSend('webview:focus', { id: contents.id, focused: true }));
   contents.on('blur', () => safeSend('webview:focus', { id: contents.id, focused: false }));
 
+  // Emulação de toque (celular/tablet mata o `:hover`, igual ao "device mode" do
+  // Chrome): usa o webContents.debugger, que NÃO convive com o DevTools embutido —
+  // então solta o debugger ao abrir o DevTools e o reata ao fechar (mantendo o desejo
+  // guardado em touchEmuWant). Ver applyTouchEmu.
+  contents.on('devtools-opened', () => applyTouchEmu(contents));
+  contents.on('devtools-closed', () => applyTouchEmu(contents));
+  contents.once('destroyed', () => touchEmuWant.delete(contents.id));
+
   // Links que abririam "nova janela" (target=_blank, window.open, Ctrl+clique) NÃO
   // viram mais aquela janela flutuante nativa do Chromium: viram uma ABA interna do
   // preview. Negamos o popup e avisamos o renderer, que cria a aba no projeto dono
@@ -520,6 +528,12 @@ ipcMain.on('devtools:dock', (_e, { previewId, devtoolsId }) => {
     const host = webContents.fromId(devtoolsId);
     if (!target || !host) return;
     target.setDevToolsWebContents(host);
+    // O DevTools embutido não convive com o webContents.debugger da emulação de toque:
+    // solta antes de abrir (reata sozinho no 'devtools-closed' se ainda estiver em
+    // celular/tablet).
+    try {
+      if (target.debugger.isAttached()) target.debugger.detach();
+    } catch {}
     target.openDevTools();
     host.focus();
     if (lastInspect) {
@@ -535,6 +549,44 @@ ipcMain.on('devtools:undock', (_e, { previewId }) => {
     const t = webContents.fromId(previewId);
     if (t && t.isDevToolsOpened()) t.closeDevTools();
   } catch {}
+});
+
+// ---------- Emulação de toque no preview (mata o :hover em celular/tablet) ----------
+// Telas de toque não têm hover — o "device mode" do Chrome/Brave translada o mouse em
+// toque (Emulation.setEmitTouchEventsForMouse), então nem o `:hover` puro (padrão do
+// Tailwind) nem `@media (hover)` disparam. Só dá pra fazer isso via CDP (webContents.
+// debugger). O desejo por webview fica em touchEmuWant; applyTouchEmu concilia com o
+// DevTools (que toma o debugger). NÃO mexe no tamanho do viewport (a moldura já é feita
+// por CSS no renderer).
+const touchEmuWant = new Map(); // contents.id -> boolean
+function applyTouchEmu(contents) {
+  if (!contents || contents.isDestroyed()) return;
+  const dbg = contents.debugger;
+  const want = touchEmuWant.get(contents.id) === true && !contents.isDevToolsOpened();
+  try {
+    if (want) {
+      if (!dbg.isAttached()) dbg.attach('1.3');
+      dbg
+        .sendCommand('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 })
+        .catch(() => {});
+      dbg
+        .sendCommand('Emulation.setEmitTouchEventsForMouse', {
+          enabled: true,
+          configuration: 'mobile',
+        })
+        .catch(() => {});
+    } else if (dbg.isAttached()) {
+      dbg.detach(); // detach zera os overrides de emulação → o hover volta
+    }
+  } catch {
+    /* alvo sumiu, ou o DevTools embutido já tomou o debugger — ignora */
+  }
+}
+ipcMain.handle('preview:touchEmu', (_e, { webContentsId, enabled }) => {
+  touchEmuWant.set(webContentsId, !!enabled);
+  const c = webContents.fromId(webContentsId);
+  if (c) applyTouchEmu(c);
+  return { ok: true };
 });
 
 // Versão do app (lida do package.json). Funciona empacotado e rodando do fonte.

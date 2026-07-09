@@ -11,6 +11,7 @@ Notas de versão do Carcará Code. As versões seguem versionamento semântico
 - Preview: **atalhos de print** — `Ctrl+P` seleciona área e `Ctrl+Shift+P` captura a tela toda (funcionam com o foco na app ou dentro do site, barrando o "imprimir" do navegador); o menu da câmera mostra os atalhos em cada linha
 - Preview: **hard reload** — `Ctrl+F5`, `Ctrl+Shift+R` e `Ctrl+Click` no botão recarregam ignorando o cache; segurar `Ctrl` deixa a setinha laranja avisando
 - Preview: **cursor de "toque" no modo celular** — no preview de iPhone o cursor vira uma bolinha de dedo e o clique mostra o marcador de tap, espelhando o seletor de elementos (injeção na página)
+- Preview: **sem `:hover` em celular/tablet** — esses modos agora emulam toque de verdade (via CDP, igual ao "device mode" do Chrome/Brave): o mouse vira toque, então nenhum efeito de hover dispara (telas de toque não têm hover). Convive com o DevTools embutido (solta e reata o debugger sozinho)
 - Código: **"Abrir no Explorador"** também no menu de contexto dos resultados da busca de arquivos (antes só na árvore)
 - Código: **seleção por arrastar (marquee)** — clicar e arrastar na área vazia da árvore seleciona vários arquivos de uma vez, estilo Chrome/desktop
 - Configurações: aba **"Novidades"** com as notas de versão (este arquivo) renderizadas no app; abre sozinha na primeira vez após atualizar
