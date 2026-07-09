@@ -81,7 +81,7 @@
       "hardenedRuntime": false,
       "identity": null,
       "artifactName": "CarcaraCode-${version}-universal.dmg",
-      "x64ArchFiles": "**/cpu-features/**"
+      "x64ArchFiles": "**/{cpu-features,canvas}/**"
     },
     "dmg": {
       "title": "Carcará Code ${version}"
