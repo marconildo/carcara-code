@@ -35,6 +35,7 @@ import {
   Code2,
   FilePlus,
   FolderPlus,
+  FolderTree,
   Sheet,
   Music,
   Loader2,
@@ -370,6 +371,10 @@ export function CodeView({ active, openRequest, visible = true }) {
   selItemsRef.current = selItems;
   // Âncora da seleção por faixa (Shift+clique seleciona da âncora até o item clicado).
   const [anchorPath, setAnchorPath] = useState(null);
+  // "Localizar na árvore": conjunto de pastas-ancestrais a forçar abertas até revelar o
+  // arquivo (cada TreeNode que se vê aqui se auto-abre; carga sob demanda cascateia).
+  const [revealPaths, setRevealPaths] = useState(null);
+  const revealTargetRef = useRef(null);
   const anchorRef = useRef(null);
   anchorRef.current = anchorPath;
 
@@ -674,16 +679,70 @@ export function CodeView({ active, openRequest, visible = true }) {
     setDragActive(false);
   };
 
-  const openMenu = (e, item) => {
+  const openMenu = (e, item, extra) => {
     e.preventDefault();
     e.stopPropagation();
     const x = Math.min(e.clientX, window.innerWidth - 220);
     const y = Math.min(e.clientY, window.innerHeight - 300);
-    setMenu({ x, y, item });
+    setMenu({ x, y, item, ...(extra || {}) });
   };
+
+  // "Localizar na árvore": sai da busca, abre as pastas-ancestrais até o arquivo e o
+  // seleciona. Não mexe no que já está aberto — só garante o caminho até o alvo.
+  const revealInTree = (it) => {
+    const target = it.path;
+    const root = active?.path || '';
+    const ancestors = new Set();
+    let p = parentDir(target);
+    while (p && p !== root && p.length > root.length && p.startsWith(root)) {
+      ancestors.add(p);
+      p = parentDir(p);
+    }
+    setQuery(''); // sai do modo busca → a árvore aparece
+    const one = { path: target, name: it.name, isDir: false };
+    setSelItems(new Map([[target, one]]));
+    setSelected(one);
+    setAnchorPath(target);
+    revealTargetRef.current = target;
+    setRevealPaths(ancestors);
+  };
+
+  // Depois de acionar o "Localizar": as pastas abrem em cascata (carga sob demanda),
+  // então esperamos a linha do alvo surgir no DOM pra rolar até ela; aí limpamos o
+  // revealPaths (cada nó já fixou o próprio open=true, não fecham sozinhos).
+  useEffect(() => {
+    if (!revealPaths || !revealTargetRef.current) return;
+    let tries = 0;
+    let raf = 0;
+    const tick = () => {
+      const target = revealTargetRef.current;
+      if (!target) return;
+      let el = null;
+      for (const r of document.querySelectorAll('[data-tree-row]')) {
+        if (r.dataset.path === target) {
+          el = r;
+          break;
+        }
+      }
+      if (el) {
+        el.scrollIntoView({ block: 'center' });
+        revealTargetRef.current = null;
+        setRevealPaths(null);
+        return;
+      }
+      if (tries++ < 60) raf = requestAnimationFrame(tick);
+      else {
+        revealTargetRef.current = null;
+        setRevealPaths(null);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [revealPaths]);
 
   const actions = {
     reveal: (it) => window.api.revealItem(it.path),
+    revealInTree,
     copyPath: (it) => window.api.copyText(it.path),
     cut: (it) => setClip({ path: it.path, name: it.name, isDir: it.isDir, mode: 'cut' }),
     copy: (it) => setClip({ path: it.path, name: it.name, isDir: it.isDir, mode: 'copy' }),
@@ -1052,9 +1111,13 @@ export function CodeView({ active, openRequest, visible = true }) {
                         onClick={() => openFile({ path: r.path, name: r.name })}
                         onContextMenu={(e) => {
                           e.preventDefault();
-                          // Menu completo (igual ao da árvore) — aditivo: "Abrir no
-                          // Explorador" entra junto das demais ações, sem tirar nada.
-                          openMenu(e, { path: r.path, name: r.name, isDir: false });
+                          // Menu completo (igual ao da árvore) — aditivo. `fromSearch`
+                          // acrescenta o "Localizar na árvore" no topo, específico da busca.
+                          openMenu(
+                            e,
+                            { path: r.path, name: r.name, isDir: false },
+                            { fromSearch: true },
+                          );
                         }}
                         title={r.rel}
                         className={cn(
@@ -1086,6 +1149,7 @@ export function CodeView({ active, openRequest, visible = true }) {
                 <FileTreeCtx.Provider
                   value={{
                     selectedSet: selItems,
+                    revealPaths,
                     activePath,
                     onSelect: openFile,
                     onNodeClick,
@@ -1740,6 +1804,11 @@ function TreeNode({ item, depth }) {
   const ctx = useContext(FileTreeCtx);
   const [open, setOpen] = useState(false);
   const [over, setOver] = useState(false);
+  // "Localizar na árvore": se esta pasta está no caminho até o alvo, abre-se. Fica
+  // com open=true fixo (o usuário pode fechar depois normalmente).
+  useEffect(() => {
+    if (item.isDir && ctx.revealPaths?.has(item.path)) setOpen(true);
+  }, [ctx.revealPaths, item.isDir, item.path]);
   const isSel =
     ctx.selectedSet?.has(item.path) ||
     (ctx.selectedSet?.size === 0 && ctx.activePath === item.path);
@@ -1895,7 +1964,7 @@ function FileMenu({ menu, clip, actions, selItems, onClose }) {
     };
   }, [menu, onClose]);
   if (!menu) return null;
-  const { x, y, item } = menu;
+  const { x, y, item, fromSearch } = menu;
   const run = (fn) => () => {
     onClose();
     fn(item);
@@ -1908,6 +1977,17 @@ function FileMenu({ menu, clip, actions, selItems, onClose }) {
       className="fixed z-50 min-w-[200px] overflow-hidden rounded-md border bg-background py-1 shadow-md"
       style={{ left: x, top: y }}
     >
+      {fromSearch && (
+        // Só nos resultados da busca: leva o arquivo pra sua posição na árvore.
+        <>
+          <MenuItem
+            icon={FolderTree}
+            label={t('contextMenu.revealInTree')}
+            onClick={run(actions.revealInTree)}
+          />
+          <div className="my-1 border-t" />
+        </>
+      )}
       {item.root ? (
         // Área em branco: criar na raiz do projeto, ou colar.
         <>
