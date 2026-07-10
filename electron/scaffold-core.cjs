@@ -1,0 +1,107 @@
+'use strict';
+// Decisão pura do onboarding: catálogo de stacks web, comando de scaffold e
+// regras de "pasta scaffoldável". SEM fs, SEM child_process — testável no
+// scripts/platform-smoke.cjs (padrão do CLAUDE.md).
+
+// Nomes tolerados numa pasta "vazia ou só-lixo" (case-insensitive).
+const SCAFFOLD_JUNK = new Set(['.git', '.gitignore', 'readme.md', 'license']);
+
+// Catálogo fixo (v1: só web). Ordem = ordem dos cards.
+// Todos 'cli': rodam o create-* oficial SEM instalar (o install roda depois,
+// no preview:start, no diretório final — DRY).
+const CATALOG = [
+  {
+    id: 'vite-react',
+    label: 'React',
+    sub: 'Vite',
+    icon: 'Atom',
+    command: ['npm', 'create', 'vite@latest', '.', '--', '--template', 'react'],
+  },
+  {
+    id: 'next',
+    label: 'Next.js',
+    sub: 'App Router + Tailwind',
+    icon: 'Triangle',
+    command: [
+      'npx',
+      'create-next-app@latest',
+      '.',
+      '--ts',
+      '--tailwind',
+      '--eslint',
+      '--app',
+      '--src-dir',
+      '--import-alias',
+      '@/*',
+      '--use-npm',
+      '--skip-install',
+      '--yes',
+    ],
+  },
+  {
+    id: 'astro',
+    label: 'Astro',
+    sub: 'Sites de conteúdo',
+    icon: 'Rocket',
+    command: [
+      'npm',
+      'create',
+      'astro@latest',
+      '.',
+      '--',
+      '--template',
+      'basics',
+      '--no-install',
+      '--no-git',
+      '--skip-houston',
+      '-y',
+    ],
+  },
+  {
+    id: 'html',
+    label: 'HTML/CSS/JS',
+    sub: 'Vite vanilla',
+    icon: 'FileCode',
+    command: ['npm', 'create', 'vite@latest', '.', '--', '--template', 'vanilla'],
+  },
+];
+
+const BY_ID = new Map(CATALOG.map((s) => [s.id, s]));
+
+function listStacks() {
+  return CATALOG.map(({ id, label, sub, icon }) => ({ id, label, sub, icon }));
+}
+
+function commandFor(stackId) {
+  const s = BY_ID.get(stackId);
+  return s ? s.command.slice() : null;
+}
+
+function isScaffoldable(entries) {
+  if (!Array.isArray(entries)) return false;
+  return entries.every((name) => SCAFFOLD_JUNK.has(String(name).toLowerCase()));
+}
+
+function junkPresent(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter((name) => SCAFFOLD_JUNK.has(String(name).toLowerCase()));
+}
+
+// Plano de merge do tempdir -> projeto. `existing`/`generated` = nomes de topo.
+// backup: arquivos do usuário que colidem (vão pra _backup/, e o gerado vence).
+// move: tudo que o scaffold gerou.
+function mergePlan(existing, generated) {
+  const have = new Set((existing || []).map((n) => String(n).toLowerCase()));
+  const backup = (generated || []).filter((n) => have.has(String(n).toLowerCase()));
+  return { backup, move: (generated || []).slice() };
+}
+
+module.exports = {
+  SCAFFOLD_JUNK,
+  CATALOG,
+  listStacks,
+  commandFor,
+  isScaffoldable,
+  junkPresent,
+  mergePlan,
+};

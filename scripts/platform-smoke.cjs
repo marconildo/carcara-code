@@ -50,6 +50,48 @@ const roles = JSON.stringify(tpl);
 assert(roles.includes('"quit"'), 'tem role quit (Cmd+Q)');
 assert(roles.includes('"copy"') && roles.includes('"paste"'), 'tem copy/paste no Edit');
 
+// --- scaffold-core (onboarding) ---
+const sc = require('../electron/scaffold-core.cjs');
+assert(sc.isScaffoldable([]) === true, 'pasta vazia é scaffoldável');
+assert(sc.isScaffoldable(['.git']) === true, 'só .git é scaffoldável');
+assert(sc.isScaffoldable(['README.md']) === true, 'só README é scaffoldável');
+assert(
+  sc.isScaffoldable(['.git', 'README.md', 'LICENSE', '.gitignore']) === true,
+  'só-lixo é scaffoldável',
+);
+assert(sc.isScaffoldable(['package.json']) === false, 'package.json não é scaffoldável');
+assert(sc.isScaffoldable(['src']) === false, 'src não é scaffoldável');
+assert(sc.isScaffoldable(['index.html']) === false, 'index.html não é scaffoldável');
+assert(sc.isScaffoldable(['meus-pdfs']) === false, 'pasta com conteúdo não é scaffoldável');
+assert(
+  sc.commandFor('vite-react')[0] === 'npm' && sc.commandFor('vite-react').includes('react'),
+  'vite-react argv',
+);
+assert(
+  sc.commandFor('next').includes('--import-alias') && sc.commandFor('next').includes('@/*'),
+  'next tem import-alias (anti-prompt)',
+);
+assert(sc.commandFor('next').includes('--skip-install'), 'next não instala no scaffold');
+assert(
+  sc.commandFor('astro').includes('--no-install') &&
+    sc.commandFor('astro').includes('--skip-houston'),
+  'astro no-install + skip-houston',
+);
+assert(sc.commandFor('html').includes('vanilla'), 'html = vite vanilla');
+assert(sc.commandFor('inexistente') === null, 'id desconhecido -> null');
+assert(sc.listStacks().length === 4, '4 cards');
+assert(
+  sc.listStacks().every((s) => !('command' in s)),
+  'listStacks não vaza argv',
+);
+const mp = sc.mergePlan(['README.md', '.git'], ['README.md', 'src', 'package.json']);
+assert(
+  JSON.stringify(mp.backup) === JSON.stringify(['README.md']),
+  'merge: README colide -> backup',
+);
+assert(mp.move.length === 3, 'merge: move tudo que foi gerado');
+console.log('scaffold-core OK');
+
 // fixLoginPath é no-op seguro fora de darwin/linux (não lança, retorna false)
 const { fixLoginPath } = require('../electron/platform.cjs');
 (async () => {
