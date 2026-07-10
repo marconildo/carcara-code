@@ -43,6 +43,16 @@ contextBridge.exposeInMainWorld('api', {
   // CLI de IA por projeto (qual ferramenta sobe nas sessões daquele projeto)
   getAi: (projectPath) => ipcRenderer.invoke('ai:get', { projectPath }),
   setAi: (projectPath, ais, custom) => ipcRenderer.invoke('ai:set', { projectPath, ais, custom }),
+
+  // Catálogo/instalação de CLIs de IA (codex/opencode/agy). Eventos 'aiInstall:data'/
+  // 'aiInstall:done' chegam pelo on(...) genérico abaixo.
+  aiCatalog: () => ipcRenderer.invoke('ai:catalog'),
+  aiStatus: () => ipcRenderer.invoke('ai:status'),
+  aiInstallStart: (key, mode) => ipcRenderer.invoke('aiInstall:start', { key, mode }),
+  aiInstallInput: (installId, data) => ipcRenderer.send('aiInstall:input', { installId, data }),
+  aiInstallResize: (installId, cols, rows) =>
+    ipcRenderer.send('aiInstall:resize', { installId, cols, rows }),
+  aiInstallCancel: (installId) => ipcRenderer.invoke('aiInstall:cancel', { installId }),
   getLayout: () => ipcRenderer.invoke('layout:get'),
   setLayout: (layout) => ipcRenderer.invoke('layout:set', layout),
   getProjectLayout: (projectPath) => ipcRenderer.invoke('layout:getProject', { projectPath }),

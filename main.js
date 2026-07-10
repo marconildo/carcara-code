@@ -25,6 +25,8 @@ const mcpOauth = require('./electron/mcp-oauth.cjs');
 const mediaCore = require('./electron/media-core.cjs');
 const claudeSessions = require('./electron/claude-sessions.cjs');
 const aiCli = require('./electron/ai-cli.cjs');
+const aiCatalog = require('./electron/ai-catalog.cjs');
+const aiInstaller = require('./electron/ai-installer.cjs');
 const chatCli = require('./electron/chat-cli.cjs');
 const todosCore = require('./electron/claude-todos-core.cjs');
 const { initUpdater } = require('./electron/updater.cjs');
@@ -46,6 +48,8 @@ let updater = null;
 const runningServers = new Map(); // projectPath -> { proc, url, port, log }
 const terminals = new Map(); // sessionId -> { pty, buffer, projectPath } (sessões do Claude Code)
 const shells = new Map(); // projectPath -> { pty, buffer } (terminal livre por projeto)
+const aiInstalls = new Map(); // installId -> pty handle
+let aiInstallSeq = 0;
 let ptyLib = null;
 // Camada 1 SSH: instanciados em app.whenReady() (precisam de app.getPath('userData')).
 // Módulo-scope (não const dentro do whenReady) pra ficarem visíveis aos handlers IPC.
@@ -782,6 +786,65 @@ ipcMain.handle('session:setCli', (evt, { projectPath, sessionId, cli }) => {
     s.cli = cli;
     saveConfig(c);
   }
+  return { ok: true };
+});
+
+// ---- Catálogo/instalação de CLIs de IA (codex/opencode/agy) ----
+ipcMain.handle('ai:catalog', () => aiCatalog.catalogFor());
+
+ipcMain.handle('ai:status', async () => {
+  const userDataDir = app.getPath('userData');
+  const now = Date.now();
+  const out = [];
+  for (const entry of aiCatalog.catalogFor()) {
+    const det = aiInstaller.detect(entry.key);
+    let latest = null;
+    try {
+      latest = await aiInstaller.latestVersion(entry.key, { userDataDir, nowMs: now });
+    } catch {
+      latest = null; // degradação
+    }
+    out.push({
+      key: entry.key,
+      installed: det.installed,
+      version: det.version,
+      latest,
+      updateAvailable: aiCatalog.computeUpdateAvailable(det.version, latest),
+      installable: !!entry.install,
+    });
+  }
+  return out;
+});
+
+ipcMain.handle('aiInstall:start', (evt, { key, mode }) => {
+  const installId = `ai-${++aiInstallSeq}`;
+  const handle = aiInstaller.run(key, mode === 'update' ? 'update' : 'install', {
+    cwd: app.getPath('home'),
+    cols: 80,
+    rows: 24,
+    cleanEnv: cleanEnv(),
+    onData: (data) => safeSend('aiInstall:data', { installId, data }),
+    onDone: ({ ok, version }) => {
+      aiInstalls.delete(installId);
+      safeSend('aiInstall:done', { installId, ok, version });
+    },
+  });
+  aiInstalls.set(installId, handle);
+  return { installId };
+});
+
+ipcMain.on('aiInstall:input', (evt, { installId, data }) => {
+  const h = aiInstalls.get(installId);
+  if (h) h.write(data);
+});
+ipcMain.on('aiInstall:resize', (evt, { installId, cols, rows }) => {
+  const h = aiInstalls.get(installId);
+  if (h) h.resize(cols, rows);
+});
+ipcMain.handle('aiInstall:cancel', (evt, { installId }) => {
+  const h = aiInstalls.get(installId);
+  if (h) h.kill();
+  aiInstalls.delete(installId);
   return { ok: true };
 });
 
