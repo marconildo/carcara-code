@@ -7,11 +7,14 @@ import {
   Loader2,
   AlertTriangle,
   ChevronRight,
+  Info,
 } from 'lucide-react';
 import { Button } from './ui/button.jsx';
 import { useT } from '@/lib/i18n';
 
 const ICONS = { Atom, Triangle, Rocket, FileCode };
+// Texto do "i" de informação por stack (linguagem simples, sem jargão).
+const INFO_KEY = { 'vite-react': 'info_react', next: 'info_next', astro: 'info_astro' };
 
 // Estados: 'pick' | 'confirm' | 'running' | 'error'
 export function ScaffoldWizard({ projectPath, junk }) {
@@ -169,17 +172,27 @@ export function ScaffoldWizard({ projectPath, junk }) {
       <div className="grid grid-cols-2 gap-3">
         {stacks.map((s) => {
           const Icon = ICONS[s.icon] || ChevronRight;
+          const infoKey = INFO_KEY[s.id];
           return (
             <button
               key={s.id}
               onClick={() => choose(s.id)}
-              className="flex w-44 items-center gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent"
+              className="relative flex w-44 items-center gap-3 rounded-lg border border-border bg-card p-3 pr-8 text-left transition-colors hover:border-primary hover:bg-accent"
             >
               <Icon className="shrink-0 text-primary" />
               <div className="min-w-0">
                 <div className="truncate font-medium">{s.label}</div>
                 <div className="truncate text-xs text-muted-foreground">{s.sub}</div>
               </div>
+              {infoKey && (
+                <span
+                  className="absolute right-2 top-2 text-muted-foreground/60 hover:text-foreground"
+                  title={`${s.label} — ${t(`scaffold.${infoKey}`)}`}
+                  aria-label={t('scaffold.info')}
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </span>
+              )}
             </button>
           );
         })}

@@ -340,7 +340,11 @@
     "error_details": "See details",
     "retry": "Try again",
     "missing_node": "To create a project, install Node.js first.",
-    "not_scaffoldable": "This folder is no longer empty. Reload to continue."
+    "not_scaffoldable": "This folder is no longer empty. Reload to continue.",
+    "info": "What is this?",
+    "info_react": "For building a single-page app — fast and interactive, like a dashboard or a tool. Not meant to show up on Google.",
+    "info_next": "It's React with multiple pages, built to show up on Google. Great for apps with login, dashboards and data.",
+    "info_astro": "Best for content sites that need to show up on Google — landing pages, blogs, docs. Very fast."
   },
   "preview": {
     "tab": "Preview",

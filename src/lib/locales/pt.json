@@ -340,7 +340,11 @@
     "error_details": "Ver detalhes",
     "retry": "Tentar de novo",
     "missing_node": "Para criar um projeto, instale o Node.js primeiro.",
-    "not_scaffoldable": "Esta pasta deixou de estar vazia. Recarregue para continuar."
+    "not_scaffoldable": "Esta pasta deixou de estar vazia. Recarregue para continuar.",
+    "info": "O que é isso?",
+    "info_react": "Pra fazer um aplicativo de uma página só — rápido e interativo, tipo um painel ou uma ferramenta. Não é feito pra aparecer no Google.",
+    "info_next": "É o React com várias páginas e feito pra aparecer no Google. Bom pra apps com login, painéis e dados.",
+    "info_astro": "O melhor pra sites de conteúdo que precisam aparecer no Google — landing pages, blogs, sites institucionais. Bem rápido."
   },
   "preview": {
     "tab": "Preview",
