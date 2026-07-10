@@ -52,9 +52,15 @@ export default function AiManager({ initialInstallKey = null }) {
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(termHostRef.current);
-    fit.fit();
     termRef.current = term;
     fitRef.current = fit;
+    // Mede só depois do layout assentar (modal/sub-aba podem não ter estabilizado
+    // ainda no momento do mount), igual ao ShellView.
+    requestAnimationFrame(() => {
+      try {
+        fit.fit();
+      } catch {}
+    });
     term.onData((data) => {
       const id = installIdRef.current;
       if (id) window.api.aiInstallInput(id, data);
@@ -67,8 +73,13 @@ export default function AiManager({ initialInstallKey = null }) {
       } catch {}
     };
     window.addEventListener('resize', onResize);
+    // Backstop pra mudanças internas de layout (abrir modal, trocar sub-aba) que
+    // não disparam o resize do window, igual ao ShellView.
+    const ro = new ResizeObserver(onResize);
+    ro.observe(termHostRef.current);
     return () => {
       window.removeEventListener('resize', onResize);
+      ro.disconnect();
       term.dispose();
       termRef.current = null;
     };
