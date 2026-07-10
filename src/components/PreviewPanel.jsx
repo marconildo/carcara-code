@@ -1174,6 +1174,11 @@ export function PreviewPanel({
     window.api.on('devtools:toggle', () => toggleDevtoolsRef.current());
   }, []);
 
+  // Flags de view derivadas — hoisted p/ cima porque o efeito de scaffold logo abaixo
+  // usa inPreview nas deps (senão dá TDZ: "Cannot access 'inPreview' before initialization").
+  const remote = !!active?.remote;
+  const inPreview = !remote && view === 'preview';
+
   // Pasta vazia/só-lixo? Decide se o ramo "empty" mostra o wizard de scaffold.
   useEffect(() => {
     if (!inPreview || mode !== 'empty' || !active) {
@@ -1637,8 +1642,6 @@ export function PreviewPanel({
     } catch {}
   };
 
-  const remote = !!active?.remote;
-  const inPreview = !remote && view === 'preview';
   const inCode = remote || view === 'code';
   // Uma vez aberto, o CodeView fica MONTADO (só escondido via CSS quando saímos da aba),
   // pra não perder as abas de arquivos abertos ao alternar Código ↔ Preview. O ref garante
