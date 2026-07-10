@@ -37,6 +37,7 @@ import { Button } from './ui/button.jsx';
 import { ResizeBar } from './ui/resize-bar.jsx';
 import { DragHandle } from './ui/drag-handle.jsx';
 import { EmptyState } from './ui/empty-state.jsx';
+import { ScaffoldWizard } from './ScaffoldWizard.jsx';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
 import { FindBar } from './FindBar.jsx';
@@ -429,6 +430,7 @@ export function PreviewPanel({
   const [openRequest, setOpenRequest] = useState(null); // { path, name, seq } — abrir arquivo na aba Código (paleta)
   const openSeqRef = useRef(0);
   const [mode, setMode] = useState('empty'); // empty | log | web
+  const [scaffoldProbe, setScaffoldProbe] = useState(null); // { scaffoldable, junk } | null
   const [url, setUrl] = useState('');
   const [termOpen, setTermOpen] = useState(false);
   const [termHeight, setTermHeight] = useState(300);
@@ -1172,6 +1174,22 @@ export function PreviewPanel({
     window.api.on('devtools:toggle', () => toggleDevtoolsRef.current());
   }, []);
 
+  // Pasta vazia/só-lixo? Decide se o ramo "empty" mostra o wizard de scaffold.
+  useEffect(() => {
+    if (!inPreview || mode !== 'empty' || !active) {
+      setScaffoldProbe(null);
+      return;
+    }
+    let alive = true;
+    setScaffoldProbe(null);
+    window.api.scaffoldProbe(active.path).then((r) => {
+      if (alive) setScaffoldProbe(r || null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [inPreview, mode, active]);
+
   // Se trocar de projeto OU de aba com o DevTools aberto, re-encaixa no webview atual.
   useEffect(() => {
     if (devtoolsOpen) requestAnimationFrame(dockDevtools);
@@ -1897,17 +1915,26 @@ export function PreviewPanel({
           {inPreview &&
             mode === 'empty' &&
             (active ? (
-              <div className="absolute inset-0">
-                <EmptyState>
-                  {active.previewType != null
-                    ? t('preview.no_preview')
-                    : t('preview.no_preview_server')}
-                  <Button variant="secondary" size="sm" onClick={copyClaudePrompt} className="mt-1">
-                    <Copy className="mr-1" />
-                    {copied ? t('preview.prompt_copied') : t('preview.copy_prompt')}
-                  </Button>
-                </EmptyState>
-              </div>
+              scaffoldProbe?.scaffoldable ? (
+                <ScaffoldWizard projectPath={active.path} junk={scaffoldProbe.junk} />
+              ) : (
+                <div className="absolute inset-0">
+                  <EmptyState>
+                    {active.previewType != null
+                      ? t('preview.no_preview')
+                      : t('preview.no_preview_server')}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={copyClaudePrompt}
+                      className="mt-1"
+                    >
+                      <Copy className="mr-1" />
+                      {copied ? t('preview.prompt_copied') : t('preview.copy_prompt')}
+                    </Button>
+                  </EmptyState>
+                </div>
+              )
             ) : (
               <div className="absolute inset-0">
                 <EmptyState size="lg">{t('preview.select_project')}</EmptyState>
