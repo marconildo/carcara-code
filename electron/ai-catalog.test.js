@@ -3,6 +3,8 @@ import {
   catalogFor,
   installSpec,
   updateSpec,
+  uninstallGuide,
+  uninstallSpec,
   parseVersion,
   cmpVersions,
   computeUpdateAvailable,
@@ -43,6 +45,44 @@ describe('updateSpec', () => {
     expect(updateSpec('codex', 'win32').cmd).toBe(
       'irm https://chatgpt.com/codex/install.ps1 | iex',
     );
+  });
+});
+
+describe('uninstallGuide / uninstallSpec', () => {
+  it('codex é comando npm (com note e sem depender de plataforma no descritor)', () => {
+    const g = uninstallGuide('codex', 'win32');
+    expect(g.kind).toBe('command');
+    expect(g.run).toBe('npm uninstall -g @openai/codex');
+    expect(g.note_key).toBe('settings.uninstallCodexNote');
+  });
+  it('claude é comando npm do pacote oficial', () => {
+    expect(uninstallGuide('claude', 'linux').run).toBe(
+      'npm uninstall -g @anthropic-ai/claude-code',
+    );
+  });
+  it('opencode usa o desinstalador próprio', () => {
+    expect(uninstallGuide('opencode', 'darwin').run).toBe('opencode uninstall');
+  });
+  it('agy é os-apps (sem run — delega pros Apps do SO)', () => {
+    const g = uninstallGuide('agy', 'win32');
+    expect(g.kind).toBe('os-apps');
+    expect(g.run).toBeUndefined();
+    expect(g.note_key).toBe('settings.uninstallAgyNote');
+  });
+  it('desconhecido → null', () => {
+    expect(uninstallGuide('zzz', 'linux')).toBeNull();
+  });
+  it('uninstallSpec: powershell no win, sh no resto; os-apps → null', () => {
+    expect(uninstallSpec('codex', 'win32')).toEqual({
+      shell: 'powershell',
+      cmd: 'npm uninstall -g @openai/codex',
+    });
+    expect(uninstallSpec('codex', 'linux')).toEqual({
+      shell: 'sh',
+      cmd: 'npm uninstall -g @openai/codex',
+    });
+    expect(uninstallSpec('agy', 'win32')).toBeNull();
+    expect(uninstallSpec('zzz', 'linux')).toBeNull();
   });
 });
 

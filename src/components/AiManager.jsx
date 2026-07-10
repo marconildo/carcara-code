@@ -3,10 +3,11 @@
 // Reaproveita os canais aiInstall:* do main (PTY real). Ver
 // docs/superpowers/specs/2026-07-10-gestao-clis-ia-design.md.
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MoreVertical } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { CliBadge, OPT } from '@/lib/aiOptions.jsx';
 import { cn } from '@/lib/utils';
@@ -14,12 +15,91 @@ import { cn } from '@/lib/utils';
 const LABEL = (key) => OPT[key]?.label ?? key;
 const keep = (r) => r.key !== 'custom' && r.key !== 'shell'; // custom/shell não são instaláveis
 
+// Menu ⋮ por linha (sem lib de dropdown no projeto — hand-rolled mínimo). Portal +
+// posição fixa pra não ser cortado pelo `overflow-auto` da lista. Fecha ao clicar fora
+// ou Esc; o menu para o mousedown de fechar (senão o clique fecharia antes do onClick).
+function KebabMenu({ disabled, items, label }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => {
+      if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen((o) => !o);
+  };
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        onClick={toggle}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+      >
+        <MoreVertical className="size-4" />
+      </button>
+      {open && pos
+        ? createPortal(
+            <div
+              role="menu"
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 60 }}
+              className="min-w-[150px] overflow-hidden rounded-md border bg-background py-1 shadow-lg"
+            >
+              {items.map((it) => (
+                <button
+                  key={it.label}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    it.onClick();
+                  }}
+                  className={cn(
+                    'block w-full px-3 py-1.5 text-left text-[13px] transition-colors hover:bg-muted',
+                    it.danger && 'text-destructive',
+                  )}
+                >
+                  {it.label}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
 export default function AiManager({ initialInstallKey = null }) {
   const t = useT();
   const [rows, setRows] = useState([]); // status por CLI
   const [busy, setBusy] = useState(null); // key em instalação/atualização
-  const [busyMode, setBusyMode] = useState(null); // 'install' | 'update' — só rótulo do botão
+  const [busyMode, setBusyMode] = useState(null); // 'install' | 'update' | 'uninstall' — rótulo/fluxo
   const [installId, setInstallId] = useState(null);
+  const [guides, setGuides] = useState({}); // key -> descritor uninstall (do catálogo)
+  const [uninstall, setUninstall] = useState(null); // { key, note, kind, run, bin } — painel aberto
+  const isWin = window.api.platform === 'win32';
   const termHostRef = useRef(null);
   const termRef = useRef(null);
   const fitRef = useRef(null);
@@ -51,6 +131,43 @@ export default function AiManager({ initialInstallKey = null }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Descritores de desinstalação (kind/run/note por CLI) vêm do catálogo — carregados
+  // uma vez; o painel "Desinstalar" os consulta pela key da linha.
+  useEffect(() => {
+    let alive = true;
+    window.api
+      .aiCatalog()
+      .then((cat) => {
+        if (!alive) return;
+        const m = {};
+        for (const e of cat || []) if (e.uninstall) m[e.key] = e.uninstall;
+        setGuides(m);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Abre o painel guiado: pega o descritor do catálogo e (p/ kind 'command') resolve o
+  // caminho do binário, pra oferecer remoção manual quando o método oficial não cobrir.
+  const openUninstall = useCallback(
+    async (key) => {
+      const g = guides[key];
+      if (!g) return;
+      setUninstall({ key, kind: g.kind, run: g.run || null, note_key: g.note_key, bin: null });
+      if (g.kind === 'command') {
+        try {
+          const bin = await window.api.whichBin(key);
+          setUninstall((u) => (u && u.key === key ? { ...u, bin } : u));
+        } catch {
+          /* sem caminho: a linha "Binário em:" simplesmente não aparece */
+        }
+      }
+    },
+    [guides],
+  );
 
   // xterm ao vivo: mostra o progresso da instalação e encaminha entrada do usuário
   // (senha de sudo, confirmações y/n do instalador, etc.) de volta pro PTY.
@@ -123,7 +240,15 @@ export default function AiManager({ initialInstallKey = null }) {
         /* rede caiu: sem re-check, cai fora do bloco de mensagem */
       }
       const row = fresh.find((r) => r.key === key);
-      if (ok && term && row) {
+      if (busyMode === 'uninstall' && term && row) {
+        // Mensagem HONESTA de desinstalação: baseada na realidade re-checada, não no
+        // exit code (o kill do usuário ou uma remoção parcial não devem afirmar sucesso).
+        if (!row.installed) {
+          term.write(`\r\n\x1b[32m✓ ${t('settings.aiDoneUninstalled', { label })}\x1b[0m\r\n`);
+        } else {
+          term.write(`\r\n\x1b[33m⚠ ${t('settings.aiStillInstalled', { label })}\x1b[0m\r\n`);
+        }
+      } else if (ok && term && row) {
         if (row.installed && !row.updateAvailable) {
           term.write(
             `\r\n\x1b[32m✓ ${t('settings.aiDoneUpdated', { label, v: row.version })}\x1b[0m\r\n`,
@@ -143,7 +268,7 @@ export default function AiManager({ initialInstallKey = null }) {
       offData && offData();
       offDone && offDone();
     };
-  }, [installId, busy, t]);
+  }, [installId, busy, busyMode, t]);
 
   // Encerra o instalador travado (prompt interativo / CLI aberta). Mata o PTY → o main
   // dispara aiInstall:done (ok:false, sem error → sem linha vermelha) e o busy limpa.
@@ -175,8 +300,19 @@ export default function AiManager({ initialInstallKey = null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialInstallKey]);
 
+  const closeUninstall = useCallback(() => setUninstall(null), []);
+  const runUninstall = useCallback(
+    (key) => {
+      const label = LABEL(key);
+      if (!window.confirm(t('settings.aiUninstallConfirm', { label }))) return;
+      setUninstall(null);
+      start(key, 'uninstall');
+    },
+    [t, start],
+  );
+
   return (
-    <div className="flex h-[300px] gap-4">
+    <div className="relative flex h-[300px] gap-4">
       {/* Lista */}
       <div className="w-[46%] shrink-0 space-y-2 overflow-auto">
         {rows.map((r) => {
@@ -223,33 +359,15 @@ export default function AiManager({ initialInstallKey = null }) {
                   className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[13px] text-muted-foreground opacity-70"
                 >
                   <Loader2 className="size-3.5 animate-spin" />
-                  {busyMode === 'update' ? t('settings.aiUpdating') : t('settings.aiInstalling')}
+                  {busyMode === 'update'
+                    ? t('settings.aiUpdating')
+                    : busyMode === 'uninstall'
+                      ? t('settings.aiUninstall')
+                      : t('settings.aiInstalling')}
                 </button>
-              ) : r.installed && r.checking ? (
-                // Fase 1: ainda não sabemos se há update — nenhum botão de ação até o ai:status.
-                <span aria-hidden className="w-1" />
-              ) : r.installed && r.updateAvailable ? (
-                // Update disponível: botão em destaque (laranja/primary).
-                <button
-                  type="button"
-                  disabled={!!busy}
-                  onClick={() => start(r.key, 'update')}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[13px] font-medium text-primary-foreground transition-colors hover:opacity-90 disabled:opacity-40"
-                >
-                  {t('settings.aiUpdate')}
-                </button>
-              ) : r.installed ? (
-                // Em dia: sem "Atualizar" gritante — só um "Reinstalar" discreto (fantasma).
-                <button
-                  type="button"
-                  disabled={!!busy}
-                  onClick={() => start(r.key, 'install')}
-                  className="rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
-                >
-                  {t('settings.aiReinstall')}
-                </button>
-              ) : (
-                // Não instalada: instalar.
+              ) : !r.installed ? (
+                // Não instalada: "Instalar" NA HORA (já sabemos pela detecção local — não
+                // espera a checagem de rede). Fica desabilitado só se a CLI não é instalável.
                 <button
                   type="button"
                   disabled={!!busy || !r.installable}
@@ -258,6 +376,45 @@ export default function AiManager({ initialInstallKey = null }) {
                 >
                   {t('settings.aiInstall')}
                 </button>
+              ) : (
+                // Instalada: ação principal (Atualizar só quando há update) + menu ⋮
+                // (Reinstalar / Desinstalar). Durante a fase 1 (checking) o update ainda
+                // é desconhecido → só o ⋮; o "Atualizar" gritante surge no ai:status.
+                <div className="flex items-center gap-1">
+                  {!r.checking && r.updateAvailable ? (
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => start(r.key, 'update')}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[13px] font-medium text-primary-foreground transition-colors hover:opacity-90 disabled:opacity-40"
+                    >
+                      {t('settings.aiUpdate')}
+                    </button>
+                  ) : null}
+                  <KebabMenu
+                    disabled={!!busy}
+                    label={LABEL(r.key)}
+                    items={[
+                      ...(r.installable
+                        ? [
+                            {
+                              label: t('settings.aiReinstall'),
+                              onClick: () => start(r.key, 'install'),
+                            },
+                          ]
+                        : []),
+                      ...(guides[r.key]
+                        ? [
+                            {
+                              label: t('settings.aiUninstall'),
+                              danger: true,
+                              onClick: () => openUninstall(r.key),
+                            },
+                          ]
+                        : []),
+                    ]}
+                  />
+                </div>
               )}
             </div>
           );
@@ -285,6 +442,74 @@ export default function AiManager({ initialInstallKey = null }) {
           <div ref={termHostRef} className="h-full w-full p-2" />
         </div>
       </div>
+
+      {/* Painel "Desinstalar" GUIADO (por CLI): método oficial quando existe, senão
+          instruções. Nunca apagamos arquivos — só mostramos/rodamos o comando reversível
+          (após confirm) ou delegamos pros "Apps" do Windows (agy). Estilo do modal de
+          confirmação de instalação (overlay sobre a aba). */}
+      {uninstall ? (
+        <div className="absolute inset-0 z-40 flex items-center justify-center rounded-lg bg-black/55">
+          <div className="w-[380px] max-w-[92%] rounded-2xl border border-primary/30 bg-background p-5 shadow-xl">
+            <div className="mb-3 flex items-center gap-2.5">
+              <CliBadge optKey={uninstall.key} />
+              <div className="text-sm font-semibold">
+                {t('settings.aiUninstallTitle', { label: LABEL(uninstall.key) })}
+              </div>
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">{t(uninstall.note_key)}</p>
+
+            {uninstall.kind === 'command' ? (
+              <>
+                <div className="mt-3 flex items-center gap-2">
+                  <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-md border bg-muted/50 px-2.5 py-1.5 font-mono text-[12px]">
+                    {uninstall.run}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => window.api.copyText(uninstall.run)}
+                    className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {t('settings.aiCopy')}
+                  </button>
+                </div>
+                {uninstall.bin ? (
+                  <p className="mt-2 truncate font-mono text-[11px] text-muted-foreground">
+                    {t('settings.aiBinaryAt', { path: uninstall.bin })}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeUninstall}
+                className="rounded-md px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {t('settings.aiClose')}
+              </button>
+              {uninstall.kind === 'command' ? (
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() => runUninstall(uninstall.key)}
+                  className="rounded-md border border-destructive/60 px-3 py-1.5 text-[13px] text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
+                >
+                  {t('settings.aiRunInTerminal')}
+                </button>
+              ) : isWin ? (
+                <button
+                  type="button"
+                  onClick={() => window.api.openExternal('ms-settings:appsfeatures')}
+                  className="rounded-md border border-primary px-3 py-1.5 text-[13px] text-primary transition-colors hover:bg-primary/10"
+                >
+                  {t('settings.aiOpenWindowsApps')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

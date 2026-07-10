@@ -832,11 +832,18 @@ ipcMain.handle('ai:status', async (evt, arg) => {
   return out;
 });
 
+// Caminho resolvido do binário da CLI (pro painel "Desinstalar" mostrar onde remover
+// à mão). null se não achar. Ramificação por SO fica no ai-installer (tem Node).
+ipcMain.handle('ai:whichBin', (evt, { key }) => aiInstaller.whichBin(key));
+
 ipcMain.handle('aiInstall:start', (evt, { key, mode }) => {
   const installId = `ai-${++aiInstallSeq}`;
   let registered = false;
   let pendingDone = null; // set se onDone disparar SÍNCRONO durante run() (falha imediata)
-  const handle = aiInstaller.run(key, mode === 'update' ? 'update' : 'install', {
+  // 'update' | 'uninstall' | 'install' (default). uninstall roda o comando GUIADO
+  // (npm uninstall -g / opencode uninstall) no mesmo PTY e re-detecta no exit.
+  const runMode = mode === 'update' ? 'update' : mode === 'uninstall' ? 'uninstall' : 'install';
+  const handle = aiInstaller.run(key, runMode, {
     cwd: app.getPath('home'),
     cols: 80,
     rows: 24,

@@ -50,6 +50,8 @@ contextBridge.exposeInMainWorld('api', {
   aiDetected: () => ipcRenderer.invoke('ai:detected'),
   aiStatus: (force) => ipcRenderer.invoke('ai:status', { force }),
   aiInstallStart: (key, mode) => ipcRenderer.invoke('aiInstall:start', { key, mode }),
+  // Caminho do binário da CLI, pro painel "Desinstalar" (null se não achar).
+  whichBin: (key) => ipcRenderer.invoke('ai:whichBin', { key }),
   aiInstallInput: (installId, data) => ipcRenderer.send('aiInstall:input', { installId, data }),
   aiInstallResize: (installId, cols, rows) =>
     ipcRenderer.send('aiInstall:resize', { installId, cols, rows }),

@@ -30,6 +30,29 @@ function detect(key) {
   }
 }
 
+// Resolve o caminho do binário da CLI (Windows: 1ª linha de `where`; unix: `command -v`),
+// pra o painel "Desinstalar" mostrar onde remover manualmente se o método oficial não
+// cobrir. Ramificar por SO mora aqui (tem Node), não no renderer. null se não achar.
+function whichBin(key) {
+  const entry = catalog.CATALOG[key];
+  if (!entry) return null;
+  const bin = entry.bin;
+  try {
+    const r =
+      process.platform === 'win32'
+        ? spawnSync('where', [bin], { encoding: 'utf8', timeout: 8000 })
+        : spawnSync('command', ['-v', bin], { shell: true, encoding: 'utf8', timeout: 8000 });
+    if (r.error || r.status !== 0) return null;
+    const first = String(r.stdout || '')
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)[0];
+    return first || null;
+  } catch {
+    return null;
+  }
+}
+
 function cachePath(userDataDir) {
   return path.join(userDataDir, 'ai-versions.json');
 }
@@ -141,9 +164,16 @@ function spawnSpecFor(shellName, line) {
 // dos terminais). Marca o fim escrevendo um sentinela e detectando o exit do shell.
 function run(key, mode, opts = {}) {
   const { cwd, cols = 80, rows = 24, cleanEnv, onData, onDone } = opts;
-  const spec = mode === 'update' ? catalog.updateSpec(key) : catalog.installSpec(key);
+  const spec =
+    mode === 'update'
+      ? catalog.updateSpec(key)
+      : mode === 'uninstall'
+        ? catalog.uninstallSpec(key)
+        : catalog.installSpec(key);
   if (!spec) {
-    onDone && onDone({ ok: false, version: null, error: 'CLI não instalável: ' + key });
+    const err =
+      mode === 'uninstall' ? 'CLI sem desinstalação por comando: ' : 'CLI não instalável: ';
+    onDone && onDone({ ok: false, version: null, error: err + key });
     return { write() {}, resize() {}, kill() {} };
   }
   let ptyLib;
@@ -180,4 +210,13 @@ function run(key, mode, opts = {}) {
   };
 }
 
-module.exports = { detect, cachePath, readCache, writeCache, isFresh, latestVersion, run };
+module.exports = {
+  detect,
+  whichBin,
+  cachePath,
+  readCache,
+  writeCache,
+  isFresh,
+  latestVersion,
+  run,
+};

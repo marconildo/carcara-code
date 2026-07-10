@@ -18,6 +18,13 @@ const CATALOG = {
     update: 'reinstall', // reexecuta o install
     postInstall: null,
     latest: { type: 'github', repo: 'openai/codex' },
+    // Desinstalação GUIADA: método oficial quando existe, senão instruções. Nunca
+    // apagamos arquivos; só rodamos comandos reversíveis (reinstalar volta) após confirm.
+    uninstall: {
+      kind: 'command',
+      run: 'npm uninstall -g @openai/codex',
+      note_key: 'settings.uninstallCodexNote',
+    },
   },
   opencode: {
     key: 'opencode',
@@ -29,6 +36,11 @@ const CATALOG = {
     update: { builtin: 'opencode upgrade' },
     postInstall: null,
     latest: { type: 'npm', pkg: 'opencode-ai' },
+    uninstall: {
+      kind: 'command',
+      run: 'opencode uninstall',
+      note_key: 'settings.uninstallOpencodeNote',
+    },
   },
   agy: {
     key: 'agy',
@@ -40,6 +52,8 @@ const CATALOG = {
     update: 'reinstall',
     postInstall: 'agy install',
     latest: { type: 'github', repo: 'google-antigravity/antigravity-cli' },
+    // Antigravity é app do Windows: sem comando reversível; delegamos pros "Apps" do SO.
+    uninstall: { kind: 'os-apps', note_key: 'settings.uninstallAgyNote' },
   },
   // claude não instala por aqui: já tem instalador nativo/fluxo próprio no app.
   claude: {
@@ -49,6 +63,11 @@ const CATALOG = {
     update: { builtin: 'claude update' },
     postInstall: null,
     latest: { type: 'npm', pkg: '@anthropic-ai/claude-code' },
+    uninstall: {
+      kind: 'command',
+      run: 'npm uninstall -g @anthropic-ai/claude-code',
+      note_key: 'settings.uninstallClaudeNote',
+    },
   },
 };
 
@@ -75,12 +94,35 @@ function updateSpec(key, platform = process.platform) {
   return ins ? { shell: ins.shell, cmd: ins.cmd, builtin: false } : null;
 }
 
+// Descritor de desinstalação GUIADA usado pela UI. Não roda nada — só descreve o
+// método oficial (kind 'command' com o comando reversível) ou a instrução de delegar
+// pros "Apps" do SO (kind 'os-apps', ex.: agy no Windows). `null` = sem guia.
+function uninstallGuide(key, _platform = process.platform) {
+  const e = CATALOG[key];
+  if (!e || !e.uninstall) return null;
+  const u = e.uninstall;
+  const guide = { key: e.key, bin: e.bin, kind: u.kind, note_key: u.note_key };
+  if (u.kind === 'command') guide.run = u.run;
+  return guide;
+}
+
+// Como RODAR a desinstalação no PTY (só p/ kind 'command'). O interpretador segue a
+// mesma convenção de updateSpec builtin: powershell no Windows, sh no resto. `os-apps`
+// (agy) e CLIs sem guia → null (não há comando a rodar; a UI abre os "Apps" do SO).
+function uninstallSpec(key, platform = process.platform) {
+  const e = CATALOG[key];
+  if (!e || !e.uninstall || e.uninstall.kind !== 'command') return null;
+  const shell = slot(platform) === 'win' ? 'powershell' : 'sh';
+  return { shell, cmd: e.uninstall.run };
+}
+
 function catalogFor(platform = process.platform) {
   return Object.values(CATALOG).map((e) => ({
     key: e.key,
     bin: e.bin,
     install: installSpec(e.key, platform),
     update: updateSpec(e.key, platform),
+    uninstall: uninstallGuide(e.key, platform),
     postInstall: e.postInstall || null,
     latest: e.latest,
   }));
@@ -116,6 +158,8 @@ module.exports = {
   catalogFor,
   installSpec,
   updateSpec,
+  uninstallGuide,
+  uninstallSpec,
   parseVersion,
   cmpVersions,
   computeUpdateAvailable,
