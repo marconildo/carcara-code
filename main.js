@@ -792,6 +792,21 @@ ipcMain.handle('session:setCli', (evt, { projectPath, sessionId, cli }) => {
 // ---- Catálogo/instalação de CLIs de IA (codex/opencode/agy) ----
 ipcMain.handle('ai:catalog', () => aiCatalog.catalogFor());
 
+// Fase rápida: só detecção LOCAL (spawn --version), SEM rede. A aba usa isso pra
+// renderizar a lista na hora; o ai:status (lento, com latestVersion) vem depois e
+// preenche latest/updateAvailable.
+ipcMain.handle('ai:detected', () =>
+  aiCatalog.catalogFor().map((entry) => {
+    const det = aiInstaller.detect(entry.key);
+    return {
+      key: entry.key,
+      installed: det.installed,
+      version: det.version,
+      installable: !!entry.install,
+    };
+  }),
+);
+
 ipcMain.handle('ai:status', async (evt, arg) => {
   const force = !!(arg && arg.force);
   const userDataDir = app.getPath('userData');

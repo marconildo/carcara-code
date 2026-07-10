@@ -12,6 +12,7 @@ import { CliBadge, OPT } from '@/lib/aiOptions.jsx';
 import { cn } from '@/lib/utils';
 
 const LABEL = (key) => OPT[key]?.label ?? key;
+const keep = (r) => r.key !== 'custom' && r.key !== 'shell'; // custom/shell não são instaláveis
 
 export default function AiManager({ initialInstallKey = null }) {
   const t = useT();
@@ -28,14 +29,22 @@ export default function AiManager({ initialInstallKey = null }) {
   installIdRef.current = installId;
 
   const refresh = useCallback(async () => {
+    // Fase 1 (rápida, só detecção local): renderiza a lista NA HORA. Cada linha entra
+    // como `checking:true` — a área de status mostra "verificando…" até a fase 2.
     try {
-      // force=true: fura o cache de 24h de versão no main pra a lista refletir o "latest" fresco
-      // ao (re)abrir a aba e logo após instalar/atualizar.
-      const s = await window.api.aiStatus(true);
-      // custom/shell não entram nesta lista (não instaláveis).
-      setRows(s.filter((r) => r.key !== 'custom' && r.key !== 'shell'));
+      const det = await window.api.aiDetected();
+      setRows(det.filter(keep).map((r) => ({ ...r, checking: true })));
     } catch {
       setRows([]);
+    }
+    // Fase 2 (lenta, com rede): force=true fura o cache de 24h de versão pra refletir o
+    // "latest" fresco e preencher latest/updateAvailable. A lista já está visível.
+    try {
+      const s = await window.api.aiStatus(true);
+      setRows(s.filter(keep).map((r) => ({ ...r, checking: false })));
+    } catch {
+      // Rede caiu: mantém as linhas da fase 1, só encerra o "verificando…".
+      setRows((prev) => prev.map((r) => ({ ...r, checking: false })));
     }
   }, []);
 
@@ -97,29 +106,53 @@ export default function AiManager({ initialInstallKey = null }) {
     const offData = window.api.on('aiInstall:data', ({ data }) => {
       if (termRef.current) termRef.current.write(data);
     });
-    const offDone = window.api.on('aiInstall:done', ({ installId: id, ok, error, version }) => {
+    const offDone = window.api.on('aiInstall:done', async ({ installId: id, ok, error }) => {
       if (id !== installId) return;
+      const key = busy;
+      const label = LABEL(key);
       const term = termRef.current;
-      if (term) {
-        if (!ok && error) {
-          term.write(`\r\n\x1b[31m${error}\x1b[0m\r\n`);
-        } else if (ok) {
-          // Confirmação verde "já está no latest agora" pedida no teste real.
-          const label = LABEL(busy);
-          const vtxt = version ? ` — agora na versão ${version}` : '';
-          term.write(`\r\n\x1b[32m✓ ${label}${vtxt}\x1b[0m\r\n`);
+      // Falha real (kill do usuário não traz error → sem linha vermelha).
+      if (term && !ok && error) term.write(`\r\n\x1b[31m${error}\x1b[0m\r\n`);
+      // Mensagem HONESTA: re-checa a realidade (fura o cache) ANTES de decidir. Instaladores
+      // que se auto-atualizam em background podem terminar sem mudar a versão — nesse caso
+      // NÃO afirmamos sucesso verde.
+      let fresh = [];
+      try {
+        fresh = (await window.api.aiStatus(true)).filter(keep);
+      } catch {
+        /* rede caiu: sem re-check, cai fora do bloco de mensagem */
+      }
+      const row = fresh.find((r) => r.key === key);
+      if (ok && term && row) {
+        if (row.installed && !row.updateAvailable) {
+          term.write(
+            `\r\n\x1b[32m✓ ${t('settings.aiDoneUpdated', { label, v: row.version })}\x1b[0m\r\n`,
+          );
+        } else if (row.updateAvailable) {
+          term.write(
+            `\r\n\x1b[33m⚠ ${t('settings.aiDoneNoChange', { label, v: row.version })}\x1b[0m\r\n`,
+          );
         }
       }
+      if (fresh.length) setRows(fresh.map((r) => ({ ...r, checking: false })));
       setBusy(null);
       setBusyMode(null);
       setInstallId(null);
-      refresh();
     });
     return () => {
       offData && offData();
       offDone && offDone();
     };
-  }, [installId, refresh, busy]);
+  }, [installId, busy, t]);
+
+  // Encerra o instalador travado (prompt interativo / CLI aberta). Mata o PTY → o main
+  // dispara aiInstall:done (ok:false, sem error → sem linha vermelha) e o busy limpa.
+  const stop = useCallback(() => {
+    const id = installIdRef.current;
+    if (!id) return;
+    window.api.aiInstallCancel(id);
+    if (termRef.current) termRef.current.write('\r\n\x1b[2mEncerrado.\x1b[0m\r\n');
+  }, []);
 
   const start = useCallback(
     async (key, mode) => {
@@ -161,15 +194,25 @@ export default function AiManager({ initialInstallKey = null }) {
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium">{LABEL(r.key)}</div>
                 <div className="text-xs text-muted-foreground">
-                  {installing
-                    ? busyMode === 'update'
-                      ? t('settings.aiUpdating')
-                      : t('settings.aiInstalling')
-                    : r.installed
-                      ? r.updateAvailable
-                        ? t('settings.aiUpdateAvailable', { v: r.latest })
-                        : t('settings.aiUpToDate', { v: r.version })
-                      : t('settings.aiNotInstalled')}
+                  {installing ? (
+                    busyMode === 'update' ? (
+                      t('settings.aiUpdating')
+                    ) : (
+                      t('settings.aiInstalling')
+                    )
+                  ) : !r.installed ? (
+                    t('settings.aiNotInstalled')
+                  ) : r.checking ? (
+                    // Fase 1 (ai:detected): sabemos instalada+versão, mas ainda não o "latest".
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="size-3 animate-spin" />
+                      {t('settings.aiChecking')}
+                    </span>
+                  ) : r.updateAvailable ? (
+                    t('settings.aiUpdateAvailable', { v: r.latest })
+                  ) : (
+                    t('settings.aiUpToDate', { v: r.version })
+                  )}
                 </div>
               </div>
               {installing ? (
@@ -182,6 +225,9 @@ export default function AiManager({ initialInstallKey = null }) {
                   <Loader2 className="size-3.5 animate-spin" />
                   {busyMode === 'update' ? t('settings.aiUpdating') : t('settings.aiInstalling')}
                 </button>
+              ) : r.installed && r.checking ? (
+                // Fase 1: ainda não sabemos se há update — nenhum botão de ação até o ai:status.
+                <span aria-hidden className="w-1" />
               ) : r.installed && r.updateAvailable ? (
                 // Update disponível: botão em destaque (laranja/primary).
                 <button
@@ -217,9 +263,27 @@ export default function AiManager({ initialInstallKey = null }) {
           );
         })}
       </div>
-      {/* Terminal ao vivo — altura fixa (~300px) pra não esticar o modal inteiro. */}
-      <div className="h-full flex-1 overflow-hidden rounded-lg border bg-[#0d0f12]">
-        <div ref={termHostRef} className="h-full w-full p-2" />
+      {/* Coluna do terminal ao vivo — altura fixa (~300px) pra não esticar o modal inteiro. */}
+      <div className="flex h-full flex-1 flex-col gap-1.5 overflow-hidden">
+        {/* Aviso persistente: o PTY é um TTY real; alguns instaladores perguntam ou abrem
+            a CLI e nunca saem. O usuário responde no terminal ou clica Encerrar. */}
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[11px] leading-tight text-muted-foreground">
+            {t('settings.aiInstallHint')}
+          </p>
+          {busy && installId ? (
+            <button
+              type="button"
+              onClick={stop}
+              className="shrink-0 rounded-md border border-destructive/60 px-2 py-1 text-xs text-destructive transition-colors hover:bg-destructive/10"
+            >
+              {t('settings.aiInstallStop')}
+            </button>
+          ) : null}
+        </div>
+        <div className="flex-1 overflow-hidden rounded-lg border bg-[#0d0f12]">
+          <div ref={termHostRef} className="h-full w-full p-2" />
+        </div>
       </div>
     </div>
   );
