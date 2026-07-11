@@ -1109,6 +1109,14 @@ export function CodeView({ active, openRequest, visible = true }) {
                         key={r.path}
                         type="button"
                         onClick={() => openFile({ path: r.path, name: r.name })}
+                        // Arrastável igual às linhas da árvore: reaproveita o mesmo
+                        // onTreeDragStart (escreve MOVE_MIME) pra soltar o caminho no
+                        // terminal do chat. Sem isto, resultados de busca não arrastavam.
+                        draggable
+                        onDragStart={(e) =>
+                          onTreeDragStart(e, { path: r.path, name: r.name, isDir: false })
+                        }
+                        onDragEnd={onTreeDragEnd}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           // Menu completo (igual ao da árvore) — aditivo. `fromSearch`

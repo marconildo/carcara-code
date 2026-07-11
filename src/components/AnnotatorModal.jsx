@@ -250,12 +250,25 @@ export default function AnnotatorModal({ dataURL, onCopy, onClose }) {
     }
   };
 
-  // Esc fecha (cancela, nada é copiado).
+  // Esc fecha (cancela, nada é copiado). Ctrl/Cmd+C copia a imagem atual (com ou sem
+  // anotações) e fecha o modal — o mesmo caminho do botão "Copiar", que já dá setShot(null)
+  // no sucesso. Só não sequestra o Ctrl+C quando há um texto em edição: aí o atalho segue
+  // nativo e copia o texto digitado dentro da caixa.
+  const copyRef = useRef(() => {});
+  copyRef.current = copy;
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
         onClose();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        const active = fabricRef.current?.getActiveObject();
+        if (active?.isEditing) return;
+        e.preventDefault();
+        e.stopPropagation();
+        copyRef.current();
       }
     };
     window.addEventListener('keydown', onKey, true);
