@@ -8,6 +8,8 @@ import codexUrl from '@/assets/cli/codex-color.svg';
 import antigravityUrl from '@/assets/cli/antigravity-color.svg';
 import opencodeDarkUrl from '@/assets/cli/opencode-logo-dark.svg';
 import opencodeLightUrl from '@/assets/cli/opencode-logo-light.svg';
+import carcaraLightUrl from '@/assets/logo-light.svg';
+import carcaraDarkUrl from '@/assets/logo-dark.svg';
 
 function LogoImg({ src, className }) {
   return <img src={src} alt="" draggable={false} className={cn('object-contain', className)} />;
@@ -28,5 +30,13 @@ export function OpenCodeIcon({ className }) {
   const { theme } = useTheme();
   return (
     <LogoImg src={theme === 'dark' ? opencodeDarkUrl : opencodeLightUrl} className={className} />
+  );
+}
+
+// Carcará Code AI: a própria marca do carcará (theme-aware, como no empty-state).
+export function CarcaraIcon({ className }) {
+  const { theme } = useTheme();
+  return (
+    <LogoImg src={theme === 'dark' ? carcaraDarkUrl : carcaraLightUrl} className={className} />
   );
 }

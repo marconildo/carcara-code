@@ -2,7 +2,13 @@
 // (SettingsModal) e pela tela de escolha (AiPicker). 'cmd' é o comando digitado no
 // terminal; 'desc' é uma CHAVE de i18n (resolvida com t(opt.desc) no render).
 import { Wrench, Terminal as TerminalIcon } from 'lucide-react';
-import { ClaudeCodeIcon, CodexIcon, OpenCodeIcon, AntigravityIcon } from '@/lib/cliIcons.jsx';
+import {
+  ClaudeCodeIcon,
+  CodexIcon,
+  OpenCodeIcon,
+  AntigravityIcon,
+  CarcaraIcon,
+} from '@/lib/cliIcons.jsx';
 import { cn } from '@/lib/utils';
 
 export const AI_OPTIONS = [
@@ -47,7 +53,7 @@ export const AI_OPTIONS = [
     label: 'Carcará Code AI',
     cmd: '',
     color: '#e8590c',
-    Icon: OpenCodeIcon,
+    Icon: CarcaraIcon,
     fullColor: true,
     desc: 'settings.aiCarcaraDesc',
   },

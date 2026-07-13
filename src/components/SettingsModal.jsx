@@ -324,8 +324,14 @@ export function SettingsModal({
       alive = false;
     };
   }, [open]);
+  // carcara não é uma CLI do catálogo (o motor OpenCode se auto-instala sob demanda),
+  // então é sempre "disponível" — nunca cai no fluxo de instalação. Ver [[carcara-add-ai-integration-points]].
   const isInstalled = (key) =>
-    key === 'custom' || key === 'shell' || !installedKeys || installedKeys.has(key);
+    key === 'custom' ||
+    key === 'shell' ||
+    key === 'carcara' ||
+    !installedKeys ||
+    installedKeys.has(key);
 
   if (!open) return null;
 
