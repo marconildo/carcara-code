@@ -127,6 +127,16 @@ contextBridge.exposeInMainWorld('api', {
   chatAbort: (sessionId) => ipcRenderer.send('chat:abort', { sessionId }),
   chatClose: (sessionId) => ipcRenderer.invoke('chat:close', { sessionId }),
 
+  // Carcará (agente headless nativo). Eventos chegam pelo push 'carcara:event' via
+  // on(...) genérico abaixo.
+  carcaraEnsure: (sessionId, projectPath) =>
+    ipcRenderer.invoke('carcara:ensure', { sessionId, projectPath }),
+  carcaraSend: (sessionId, text) => ipcRenderer.invoke('carcara:send', { sessionId, text }),
+  carcaraAbort: (sessionId) => ipcRenderer.send('carcara:abort', { sessionId }),
+  carcaraApprove: (sessionId, permissionId, ok) =>
+    ipcRenderer.invoke('carcara:approve', { sessionId, permissionId, ok }),
+  carcaraDispose: (sessionId) => ipcRenderer.send('carcara:dispose', { sessionId }),
+
   // Terminal livre (shell comum)
   shellEnsure: (projectPath, cols, rows) =>
     ipcRenderer.invoke('shell:ensure', { projectPath, cols, rows }),
