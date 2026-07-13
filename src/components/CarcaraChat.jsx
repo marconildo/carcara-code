@@ -105,11 +105,11 @@ export function CarcaraChat({ sessionId, projectPath }) {
     setReady(false);
     setPhase('');
     window.api.carcaraEnsure?.(sessionId, projectPath).then((r) => {
-      if (r && r.error) setPhase(t('carcara.error', { error: r.error }));
+      if (r && r.error) setPhase('Erro: ' + r.error);
       else setReady(true);
     });
     return () => window.api.carcaraDispose?.(sessionId);
-  }, [sessionId, projectPath, t]);
+  }, [sessionId, projectPath]);
 
   // Assina o stream de eventos da sessão.
   useEffect(() => {
@@ -145,6 +145,10 @@ export function CarcaraChat({ sessionId, projectPath }) {
       if (r && r.error) {
         setBusy(false);
         setPhase(t('carcara.error', { error: r.error }));
+        setMessages((prev) => [
+          ...prev,
+          { id: nextId(), role: 'assistant', parts: [{ type: 'text', text: '⚠️ ' + r.error }] },
+        ]);
       }
     },
     [t],
