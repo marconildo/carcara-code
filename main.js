@@ -28,6 +28,7 @@ const aiCli = require('./electron/ai-cli.cjs');
 const aiCatalog = require('./electron/ai-catalog.cjs');
 const aiInstaller = require('./electron/ai-installer.cjs');
 const chatCli = require('./electron/chat-cli.cjs');
+const carcara = require('./electron/carcara/manager.cjs');
 const todosCore = require('./electron/claude-todos-core.cjs');
 const { initUpdater } = require('./electron/updater.cjs');
 const phpRuntime = require('./electron/php-runtime.cjs');
@@ -2442,6 +2443,64 @@ ipcMain.handle('chat:close', (evt, { sessionId }) => {
     chatTurnProcs.delete(sessionId);
   }
   return { ok: true };
+});
+
+// ── Carcará Code AI (motor OpenCode headless; isolado do chat:*) ────────────
+const carcaraPrefixDir = () => path.join(app.getPath('userData'), 'carcara', 'oc');
+// Fase 1: provider DIRETO (chave de dev). Fase 2 troca pra Edge Function.
+const carcaraProvider = () => ({
+  baseUrl: process.env.CARCARA_DEV_BASE_URL || 'https://openrouter.ai/api/v1',
+  apiKey: process.env.CARCARA_DEV_KEY || '',
+  model: process.env.CARCARA_DEV_MODEL || 'z-ai/glm-4.6:free',
+});
+// guarda o projectPath por sessão pra saber onde cravar checkpoint na aprovação
+const carcaraProjects = new Map();
+
+ipcMain.handle('carcara:ensure', async (evt, { sessionId, projectPath }) => {
+  try {
+    carcaraProjects.set(sessionId, projectPath);
+    await carcara.ensure({
+      sessionId,
+      projectPath,
+      prefixDir: carcaraPrefixDir(),
+      provider: carcaraProvider(),
+      emit: (sid, event) => safeSend('carcara:event', { sessionId: sid, event }),
+      onPhase: (msg) =>
+        safeSend('carcara:event', { sessionId, event: { kind: 'phase', text: msg } }),
+    });
+    return { ok: true };
+  } catch (err) {
+    return { error: String((err && err.message) || err) };
+  }
+});
+
+ipcMain.handle('carcara:send', async (evt, { sessionId, text }) => {
+  try {
+    await carcara.send({ sessionId, text });
+    return { ok: true };
+  } catch (err) {
+    return { error: String((err && err.message) || err) };
+  }
+});
+
+ipcMain.on('carcara:abort', (evt, { sessionId }) => carcara.abort({ sessionId }));
+
+ipcMain.handle('carcara:approve', async (evt, { sessionId, permissionId, ok }) => {
+  try {
+    if (ok) {
+      const projectPath = carcaraProjects.get(sessionId);
+      if (projectPath) await checkpointCreate(projectPath, 'Antes da edição da Carcará AI');
+    }
+    await carcara.approve({ sessionId, permissionId, ok });
+    return { ok: true };
+  } catch (err) {
+    return { error: String((err && err.message) || err) };
+  }
+});
+
+ipcMain.on('carcara:dispose', (evt, { sessionId }) => {
+  carcara.dispose({ sessionId });
+  carcaraProjects.delete(sessionId);
 });
 
 ipcMain.handle('claude:applyTheme', (evt, { theme }) => {
