@@ -60,8 +60,16 @@ describe('buildResumeCommand', () => {
     expect(buildResumeCommand('custom', {}, 'gemini')).toBe('gemini');
     expect(buildResumeCommand('custom', {}, '  ')).toBe('claude');
   });
-  it('VALID_CLIS contém exatamente as 6 chaves', () => {
-    expect(VALID_CLIS).toEqual(['claude', 'codex', 'opencode', 'agy', 'custom', 'shell']);
+  it('VALID_CLIS contém exatamente as 7 chaves', () => {
+    expect(VALID_CLIS).toEqual([
+      'claude',
+      'codex',
+      'opencode',
+      'agy',
+      'carcara',
+      'custom',
+      'shell',
+    ]);
   });
 });
 

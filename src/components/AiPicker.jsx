@@ -24,7 +24,8 @@ export function AiPicker({ ais, onPick, onOpenAiInstall }) {
       alive = false;
     };
   }, []);
-  const missing = (key) => key !== 'custom' && key !== 'shell' && installed && !installed.has(key);
+  const missing = (key) =>
+    key !== 'custom' && key !== 'shell' && key !== 'carcara' && installed && !installed.has(key);
   return (
     <div
       className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 p-6"

@@ -757,7 +757,7 @@ export function ChatPanel({ activeProject, controlsRef, onActiveSessionChange, o
   // seletor de IA e layout ficam.
   const cliOf = (sid) => sessions.find((s) => s.id === sid)?.cli;
   const isChatSession = (sid) => chatMode === 'chat' && CHAT_CLIS.includes(cliOf(sid));
-  const isCarcaraSession = (sid) => chatMode === 'chat' && cliOf(sid) === 'carcara';
+  const isCarcaraSession = (sid) => cliOf(sid) === 'carcara';
   // Atividade do Claude POR SESSÃO: sessionId -> 'working' | 'asking' | 'attention'.
   // É o detalhe fino (qual aba) que o rail (agregado por projeto) não mostra.
   const [sessionActivity, setSessionActivity] = useState({});
@@ -1043,7 +1043,7 @@ export function ChatPanel({ activeProject, controlsRef, onActiveSessionChange, o
         let te = termsRef.current.get(sid);
         // Sessão em modo chat: não cria/mostra o xterm (o overlay do AssistantChat cobre
         // o container). Esconde um terminal já criado, se existir, sem matá-lo.
-        if (isActive && isChatSession(sid)) {
+        if (isActive && (isChatSession(sid) || isCarcaraSession(sid))) {
           if (te) te.el.style.display = 'none';
           continue;
         }
