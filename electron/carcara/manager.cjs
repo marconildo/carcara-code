@@ -189,10 +189,11 @@ function abort({ sessionId }) {
 async function approve({ sessionId, permissionId, ok }) {
   const e = state.get(sessionId);
   if (!e) throw new Error('sessão Carcará não iniciada');
+  // OpenCode espera 'once' | 'always' | 'reject' (confirmado em runtime) — NÃO 'allow'.
   await fetch(`http://${HOST}:${e.port}/session/${e.ocSessionId}/permissions/${permissionId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: e.auth },
-    body: JSON.stringify({ response: ok ? 'allow' : 'reject' }),
+    body: JSON.stringify({ response: ok ? 'once' : 'reject' }),
   }).catch(() => {});
 }
 

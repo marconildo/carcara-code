@@ -91,6 +91,17 @@ function assert(cond, msg) {
     properties: { sessionID: 's1', permissionID: 'p1', title: 'Editar arquivo x' },
   });
   assert(n && n.kind === 'permission' && n.permissionId === 'p1', 'permission');
+  // sem title, com metadata.filepath → título "Editar <basename>" e lê id (não permissionID)
+  const n2 = normalizeEvent({
+    type: 'permission.asked',
+    properties: {
+      id: 'per_x',
+      permission: 'edit',
+      metadata: { filepath: 'C:\\proj\\carcara-teste.txt' },
+    },
+  });
+  assert(n2.permissionId === 'per_x', 'permission lê id');
+  assert(n2.title === 'Editar carcara-teste.txt', 'title do filepath: ' + n2.title);
 }
 
 // session.idle

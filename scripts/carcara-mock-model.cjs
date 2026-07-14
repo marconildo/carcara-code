@@ -1,41 +1,151 @@
 // Modelo de TESTE local (OpenAI-compatible) pra exercitar o chat da Carcará sem
-// depender de IA/chave externa. Faz streaming de uma resposta amigável.
-// Uso: node scripts/carcara-mock-model.cjs   (sobe em http://127.0.0.1:8899/v1)
-// Aponte o app: CARCARA_DEV_BASE_URL=http://127.0.0.1:8899/v1  CARCARA_DEV_MODEL=carcara-mock
+// depender de IA/chave externa. Faz streaming de texto e, quando você pede uma edição
+// ("crie/edite um arquivo…"), emite um tool_call `write` do OpenCode → dispara o card
+// de diff + aprovação. Uso: node scripts/carcara-mock-model.cjs  (http://127.0.0.1:8899/v1)
 const http = require('http');
+const path = require('path');
 
 const PORT = 8899;
 const MODEL = 'carcara-mock';
 
-function reply(userText) {
+function chatReply(userText) {
   const t = (userText || '').trim();
   return (
     `Olá! 👋 Aqui é o **modelo de teste local** da Carcará (sem IA externa).\n\n` +
     `Você disse: "${t || '(vazio)'}".\n\n` +
-    `Se você está lendo isto aparecendo aos poucos, o **streaming**, as **bolhas** e o ` +
-    `render estão funcionando. O chat tá 100%. 🎉`
+    `Streaming, bolhas e render OK. Pra testar **edição de arquivo**, peça algo como ` +
+    `"crie um arquivo teste". 🎉`
   );
 }
 
-function lastUserText(body) {
-  try {
-    const msgs = (body && body.messages) || [];
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const m = msgs[i];
-      if (m.role === 'user') {
-        if (typeof m.content === 'string') return m.content;
-        if (Array.isArray(m.content))
-          return m.content.map((c) => (typeof c === 'string' ? c : c.text || '')).join(' ');
-      }
+// O usuário quer que a IA edite/crie um arquivo?
+function wantsEdit(text) {
+  return /\bcri[ae]r?\b|\barquivo\b|\bedit|\bescrev|\bwrite\b|\bfile\b|teste\.txt/i.test(
+    text || '',
+  );
+}
+
+function lastUserText(messages) {
+  for (let i = (messages || []).length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === 'user') {
+      if (typeof m.content === 'string') return m.content;
+      if (Array.isArray(m.content))
+        return m.content.map((c) => (typeof c === 'string' ? c : c.text || '')).join(' ');
     }
-  } catch {
-    /* noop */
   }
   return '';
 }
 
-function sseChunk(res, obj) {
+function lastRole(messages) {
+  const m = (messages || [])[(messages || []).length - 1];
+  return m && m.role;
+}
+
+// Extrai "Working directory: <path>" do prompt de sistema (é assim que o OpenCode passa o cwd).
+function cwdFromMessages(messages) {
+  for (const m of messages || []) {
+    const c = typeof m.content === 'string' ? m.content : JSON.stringify(m.content || '');
+    const mt = c.match(/Working directory:\s*(.+)/i);
+    if (mt) return mt[1].trim();
+  }
+  return null;
+}
+
+function sse(res, obj) {
   res.write('data: ' + JSON.stringify(obj) + '\n\n');
+}
+
+function streamText(res, text) {
+  const id = 'chatcmpl-mock';
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  sse(res, {
+    id,
+    object: 'chat.completion.chunk',
+    model: MODEL,
+    choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }],
+  });
+  const toks = text.match(/\s+|\S+/g) || [text];
+  let i = 0;
+  const tick = () => {
+    if (i < toks.length) {
+      sse(res, {
+        id,
+        object: 'chat.completion.chunk',
+        model: MODEL,
+        choices: [{ index: 0, delta: { content: toks[i] }, finish_reason: null }],
+      });
+      i++;
+      setTimeout(tick, 20);
+    } else {
+      sse(res, {
+        id,
+        object: 'chat.completion.chunk',
+        model: MODEL,
+        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+      });
+      res.write('data: [DONE]\n\n');
+      res.end();
+    }
+  };
+  tick();
+}
+
+// Emite um tool_call `write` (formato streaming do OpenAI) pra criar um arquivo de teste.
+function streamWriteToolCall(res, filePath, content) {
+  const id = 'chatcmpl-mock';
+  const args = JSON.stringify({ filePath, content });
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  sse(res, {
+    id,
+    object: 'chat.completion.chunk',
+    model: MODEL,
+    choices: [
+      {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          tool_calls: [
+            {
+              index: 0,
+              id: 'call_mock_1',
+              type: 'function',
+              function: { name: 'write', arguments: '' },
+            },
+          ],
+        },
+        finish_reason: null,
+      },
+    ],
+  });
+  sse(res, {
+    id,
+    object: 'chat.completion.chunk',
+    model: MODEL,
+    choices: [
+      {
+        index: 0,
+        delta: { tool_calls: [{ index: 0, function: { arguments: args } }] },
+        finish_reason: null,
+      },
+    ],
+  });
+  sse(res, {
+    id,
+    object: 'chat.completion.chunk',
+    model: MODEL,
+    choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+  });
+  res.write('data: [DONE]\n\n');
+  res.end();
 }
 
 const server = http.createServer((req, res) => {
@@ -48,7 +158,6 @@ const server = http.createServer((req, res) => {
     res.writeHead(204, cors);
     return res.end();
   }
-  // Lista de modelos (o OpenCode/UI pode consultar).
   if (req.method === 'GET' && req.url.replace(/\/+$/, '').endsWith('/models')) {
     res.writeHead(200, { 'Content-Type': 'application/json', ...cors });
     return res.end(
@@ -58,7 +167,6 @@ const server = http.createServer((req, res) => {
       }),
     );
   }
-  // Chat completions.
   if (req.method === 'POST' && req.url.includes('/chat/completions')) {
     let raw = '';
     req.on('data', (d) => (raw += d));
@@ -69,66 +177,35 @@ const server = http.createServer((req, res) => {
       } catch {
         /* noop */
       }
-      const text = reply(lastUserText(body));
-      const id = 'chatcmpl-mock';
-      const created = 1700000000;
-      console.log('[mock] POST /chat/completions stream=%s', !!body.stream);
+      const msgs = body.messages || [];
+      const role = lastRole(msgs);
+      const userText = lastUserText(msgs);
+      const hasTools = Array.isArray(body.tools) && body.tools.length > 0;
 
-      if (body.stream) {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-          ...cors,
-        });
-        sseChunk(res, {
-          id,
-          object: 'chat.completion.chunk',
-          created,
-          model: MODEL,
-          choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }],
-        });
-        const tokens = text.match(/\s+|\S+/g) || [text];
-        let i = 0;
-        const tick = () => {
-          if (i < tokens.length) {
-            sseChunk(res, {
-              id,
-              object: 'chat.completion.chunk',
-              created,
-              model: MODEL,
-              choices: [{ index: 0, delta: { content: tokens[i] }, finish_reason: null }],
-            });
-            i++;
-            setTimeout(tick, 25);
-          } else {
-            sseChunk(res, {
-              id,
-              object: 'chat.completion.chunk',
-              created,
-              model: MODEL,
-              choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-            });
-            res.write('data: [DONE]\n\n');
-            res.end();
-          }
-        };
-        tick();
-      } else {
-        res.writeHead(200, { 'Content-Type': 'application/json', ...cors });
-        res.end(
-          JSON.stringify({
-            id,
-            object: 'chat.completion',
-            created,
-            model: MODEL,
-            choices: [
-              { index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' },
-            ],
-            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-          }),
+      // 2ª rodada: o OpenCode devolveu o resultado da ferramenta → responde texto de conclusão.
+      if (role === 'tool') {
+        console.log('[mock] tool result recebido → conclusão');
+        return streamText(
+          res,
+          'Pronto! ✅ Criei o arquivo **carcara-teste.txt** com um conteúdo de teste. Isso exercitou o diff + a aprovação. 🎉',
         );
       }
+
+      // 1ª rodada: usuário pediu edição e há ferramentas → emite tool_call `write`.
+      if (hasTools && wantsEdit(userText)) {
+        const cwd = cwdFromMessages(msgs);
+        const filePath = cwd ? path.join(cwd, 'carcara-teste.txt') : 'carcara-teste.txt';
+        console.log('[mock] pedido de edição → tool_call write em', filePath);
+        return streamWriteToolCall(
+          res,
+          filePath,
+          'Arquivo criado pela Carcará Code AI 🎉\nTeste de edição com diff + aprovação.\n',
+        );
+      }
+
+      // Chat normal.
+      console.log('[mock] chat normal (stream)');
+      streamText(res, chatReply(userText));
     });
     return;
   }

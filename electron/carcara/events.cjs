@@ -76,13 +76,24 @@ function normalizeEvent(oc) {
     case 'session.diff':
       return { kind: 'diff', files: p.files || p.diff || null };
     case 'permission.asked':
-    case 'permission.updated':
+    case 'permission.updated': {
+      // OpenCode manda id (não permissionID), permission (ex.: 'edit') e metadata.filepath.
+      const meta = p.metadata || {};
+      const fp = meta.filepath || meta.filePath;
+      const title =
+        p.title ||
+        (fp
+          ? 'Editar ' + fp.split(/[\\/]/).pop()
+          : p.permission
+            ? 'Permitir: ' + p.permission
+            : '');
       return {
         kind: 'permission',
         permissionId: p.permissionID || p.id,
-        title: p.title || '',
+        title,
         sessionId: p.sessionID,
       };
+    }
     case 'session.idle':
       return { kind: 'idle', sessionId: p.sessionID };
     case 'session.error':
