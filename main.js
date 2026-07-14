@@ -2449,11 +2449,23 @@ ipcMain.handle('chat:close', (evt, { sessionId }) => {
 const carcaraPrefixDir = () => path.join(app.getPath('userData'), 'carcara', 'oc');
 // Fase 1: provider DIRETO — API oficial da DeepSeek (deepseek-v4-flash), chave em
 // DEEPSEEK_API_KEY. Overridável por CARCARA_DEV_*. Fase 2 troca pra Edge Function.
-const carcaraProvider = () => ({
-  baseUrl: process.env.CARCARA_DEV_BASE_URL || 'https://api.deepseek.com',
-  apiKey: process.env.DEEPSEEK_API_KEY || process.env.CARCARA_DEV_KEY || '',
-  model: process.env.CARCARA_DEV_MODEL || 'deepseek-v4-flash',
-});
+const carcaraProvider = () => {
+  const p = {
+    baseUrl: process.env.CARCARA_DEV_BASE_URL || 'https://api.deepseek.com',
+    apiKey: process.env.DEEPSEEK_API_KEY || process.env.CARCARA_DEV_KEY || '',
+    model: process.env.CARCARA_DEV_MODEL || 'deepseek-v4-flash',
+  };
+  // Diagnóstico (mascarado): qual chave o app REALMENTE manda. Visível no terminal se
+  // o app foi aberto por `npm start`. keyLen=0 → env não herdada; key6 diferente → outra chave.
+  console.error(
+    '[carcara] provider baseURL=%s model=%s keyLen=%d key6=%s',
+    p.baseUrl,
+    p.model,
+    p.apiKey.length,
+    p.apiKey.slice(0, 6) || '(vazia)',
+  );
+  return p;
+};
 // guarda o projectPath por sessão pra saber onde cravar checkpoint na aprovação
 const carcaraProjects = new Map();
 

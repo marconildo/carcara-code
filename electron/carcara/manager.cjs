@@ -26,6 +26,25 @@ function cleanEnv(password) {
   return env;
 }
 
+// Mata a ÁRVORE do processo. No Windows o spawn usa shell:true, então proc.pid é o do
+// cmd.exe wrapper e proc.kill() NÃO mata o opencode.exe neto (vaza processo). taskkill /T
+// mata a árvore inteira. Comportamento de child_process por SO — ok neste módulo Node.
+function killTree(proc) {
+  if (!proc || !proc.pid) return;
+  try {
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/F', '/T', '/PID', String(proc.pid)], {
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+    } else {
+      proc.kill();
+    }
+  } catch {
+    /* noop */
+  }
+}
+
 async function waitReady(port, auth) {
   for (let i = 0; i < 120; i++) {
     try {
@@ -95,11 +114,7 @@ async function ensure({ sessionId, projectPath, prefixDir, provider, emit, onPha
     entry.port = port;
     entry.auth = auth;
     if (entry.disposed) {
-      try {
-        proc.kill();
-      } catch {
-        /* noop */
-      }
+      killTree(proc);
       return;
     }
 
@@ -190,11 +205,7 @@ function dispose({ sessionId }) {
   } catch {
     /* noop */
   }
-  try {
-    if (e.proc) e.proc.kill();
-  } catch {
-    /* noop */
-  }
+  killTree(e.proc);
   state.delete(sessionId);
 }
 
