@@ -725,7 +725,10 @@
     "send": "Send",
     "stop": "Stop",
     "error": "Error: {error}",
-    "emptyState": "Ask Carcará to build or change something in your project."
+    "emptyState": "Ask Carcará to build or change something in your project.",
+    "attachImage": "画像を添付",
+    "dropHere": "ここに画像をドロップ",
+    "removeImage": "画像を削除"
   },
   "remote": {
     "title": "新しいリモートプロジェクト（SSH）",

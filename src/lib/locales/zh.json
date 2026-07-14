@@ -725,7 +725,10 @@
     "send": "Send",
     "stop": "Stop",
     "error": "Error: {error}",
-    "emptyState": "Ask Carcará to build or change something in your project."
+    "emptyState": "Ask Carcará to build or change something in your project.",
+    "attachImage": "添加图片",
+    "dropHere": "将图片拖放到此处",
+    "removeImage": "移除图片"
   },
   "remote": {
     "title": "新建远程项目（SSH）",

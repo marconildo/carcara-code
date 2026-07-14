@@ -725,7 +725,10 @@
     "send": "Send",
     "stop": "Stop",
     "error": "Error: {error}",
-    "emptyState": "Ask Carcará to build or change something in your project."
+    "emptyState": "Ask Carcará to build or change something in your project.",
+    "attachImage": "이미지 첨부",
+    "dropHere": "여기에 이미지를 놓으세요",
+    "removeImage": "이미지 제거"
   },
   "remote": {
     "title": "새 원격 프로젝트 (SSH)",

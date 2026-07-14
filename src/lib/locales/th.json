@@ -725,7 +725,10 @@
     "send": "Send",
     "stop": "Stop",
     "error": "Error: {error}",
-    "emptyState": "Ask Carcará to build or change something in your project."
+    "emptyState": "Ask Carcará to build or change something in your project.",
+    "attachImage": "แนบรูปภาพ",
+    "dropHere": "วางรูปภาพที่นี่",
+    "removeImage": "ลบรูปภาพ"
   },
   "remote": {
     "title": "โปรเจกต์รีโมตใหม่ (SSH)",

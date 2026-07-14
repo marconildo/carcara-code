@@ -725,7 +725,10 @@
     "send": "Send",
     "stop": "Stop",
     "error": "Error: {error}",
-    "emptyState": "Ask Carcará to build or change something in your project."
+    "emptyState": "Ask Carcará to build or change something in your project.",
+    "attachImage": "छवि संलग्न करें",
+    "dropHere": "छवि यहाँ छोड़ें",
+    "removeImage": "छवि हटाएँ"
   },
   "remote": {
     "title": "नया रिमोट प्रोजेक्ट (SSH)",

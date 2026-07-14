@@ -725,7 +725,10 @@
     "send": "Send",
     "stop": "Stop",
     "error": "Error: {error}",
-    "emptyState": "Ask Carcará to build or change something in your project."
+    "emptyState": "Ask Carcará to build or change something in your project.",
+    "attachImage": "Đính kèm ảnh",
+    "dropHere": "Thả ảnh vào đây",
+    "removeImage": "Xóa ảnh"
   },
   "remote": {
     "title": "Dự án từ xa mới (SSH)",

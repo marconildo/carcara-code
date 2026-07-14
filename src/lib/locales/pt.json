@@ -725,7 +725,10 @@
     "send": "Enviar",
     "stop": "Parar",
     "error": "Erro: {error}",
-    "emptyState": "Peça pra Carcará criar ou mudar algo no seu projeto."
+    "emptyState": "Peça pra Carcará criar ou mudar algo no seu projeto.",
+    "attachImage": "Anexar imagem",
+    "dropHere": "Solte a imagem aqui",
+    "removeImage": "Remover imagem"
   },
   "remote": {
     "title": "Novo projeto remoto (SSH)",

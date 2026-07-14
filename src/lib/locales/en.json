@@ -725,7 +725,10 @@
     "send": "Send",
     "stop": "Stop",
     "error": "Error: {error}",
-    "emptyState": "Ask Carcará to build or change something in your project."
+    "emptyState": "Ask Carcará to build or change something in your project.",
+    "attachImage": "Attach image",
+    "dropHere": "Drop the image here",
+    "removeImage": "Remove image"
   },
   "remote": {
     "title": "New remote project (SSH)",
