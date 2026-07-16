@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Расположение (позиция панели и боковой панели)",
     "layoutHelp": "Задаёт значение по умолчанию для ВСЕХ проектов. Вы всё равно можете перетащить панель Claude в конкретном проекте, чтобы поменять только его.",
     "layoutPresetLL": "Боковая панель и Claude слева",

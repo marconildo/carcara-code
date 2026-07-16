@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Disposition (position du panneau et de la barre latérale)",
     "layoutHelp": "Définit le réglage par défaut pour TOUS les projets. Vous pouvez toujours glisser le panneau Claude dans un projet précis pour n'inverser que celui-là.",
     "layoutPresetLL": "Barre latérale et Claude à gauche",

@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Układ (pozycja panelu i paska bocznego)",
     "layoutHelp": "Ustawia domyślny układ dla WSZYSTKICH projektów. Nadal możesz przeciągnąć panel Claude w konkretnym projekcie, aby odwrócić tylko ten jeden.",
     "layoutPresetLL": "Pasek boczny i Claude po lewej",

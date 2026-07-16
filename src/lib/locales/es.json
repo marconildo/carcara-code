@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Diseño (posición del panel y la barra lateral)",
     "layoutHelp": "Define el valor predeterminado para TODOS los proyectos. Aún puedes arrastrar el panel de Claude en un proyecto específico para invertir solo ese.",
     "layoutPresetLL": "Barra lateral y Claude a la izquierda",

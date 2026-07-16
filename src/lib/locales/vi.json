@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Bố cục (vị trí bảng và thanh bên)",
     "layoutHelp": "Đặt mặc định cho TẤT CẢ các dự án. Bạn vẫn có thể kéo bảng Claude trong một dự án cụ thể để chỉ đảo riêng dự án đó.",
     "layoutPresetLL": "Thanh bên và Claude ở bên trái",

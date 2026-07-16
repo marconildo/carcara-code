@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Düzen (panel ve kenar çubuğu konumu)",
     "layoutHelp": "TÜM projeler için varsayılanı ayarlar. Yine de belirli bir projede Claude panelini sürükleyerek yalnızca onu ters çevirebilirsin.",
     "layoutPresetLL": "Kenar çubuğu ve Claude solda",

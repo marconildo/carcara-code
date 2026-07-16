@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "التخطيط (موضع اللوحة والشريط الجانبي)",
     "layoutHelp": "يحدد الوضع الافتراضي لجميع المشاريع. لا يزال بإمكانك سحب لوحة Claude في مشروع معين لقلب ذلك المشروع وحده.",
     "layoutPresetLL": "الشريط الجانبي و Claude على اليسار",

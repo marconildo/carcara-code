@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Layout (posição do painel e do rail)",
     "layoutHelp": "Define o padrão de TODOS os projetos. Você ainda pode arrastar o painel do Claude num projeto específico pra trocar só o lado dele.",
     "layoutPresetLL": "Rail e Claude à esquerda",

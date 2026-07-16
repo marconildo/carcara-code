@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "लेआउट (पैनल और साइडबार की स्थिति)",
     "layoutHelp": "सभी प्रोजेक्ट्स के लिए डिफ़ॉल्ट सेट करता है। आप किसी खास प्रोजेक्ट में सिर्फ़ उसी को पलटने के लिए Claude पैनल को फिर भी खींच सकते हैं।",
     "layoutPresetLL": "साइडबार और Claude बाईं ओर",

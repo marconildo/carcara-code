@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Layout (panel and sidebar position)",
     "layoutHelp": "Sets the default for ALL projects. You can still drag the Claude panel in a specific project to flip just that one.",
     "layoutPresetLL": "Sidebar and Claude on the left",

@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "Layout (Position von Panel und Seitenleiste)",
     "layoutHelp": "Legt den Standard für ALLE Projekte fest. Du kannst das Claude-Panel in einem bestimmten Projekt trotzdem ziehen, um nur dieses eine umzudrehen.",
     "layoutPresetLL": "Seitenleiste und Claude links",

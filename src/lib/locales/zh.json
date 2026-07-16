@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "布局（面板和侧边栏位置）",
     "layoutHelp": "为所有项目设置默认值。你仍然可以在特定项目中拖动 Claude 面板，只翻转那一个。",
     "layoutPresetLL": "侧边栏和 Claude 都在左侧",

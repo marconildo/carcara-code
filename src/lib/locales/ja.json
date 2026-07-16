@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "レイアウト（パネルとサイドバーの位置）",
     "layoutHelp": "すべてのプロジェクトの既定を設定します。特定のプロジェクトで Claude パネルをドラッグすれば、そのプロジェクトだけ反転できます。",
     "layoutPresetLL": "サイドバーと Claude を左に",

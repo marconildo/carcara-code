@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "레이아웃 (패널과 사이드바 위치)",
     "layoutHelp": "모든 프로젝트의 기본값을 설정합니다. 특정 프로젝트에서 Claude 패널을 끌어 그 프로젝트만 뒤집을 수도 있습니다.",
     "layoutPresetLL": "사이드바와 Claude를 왼쪽에",

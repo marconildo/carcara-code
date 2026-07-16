@@ -706,6 +706,7 @@
     "linkLinkedin": "LinkedIn",
     "linkInstagram": "Instagram",
     "linkYoutube": "YouTube",
+    "linkWhatsapp": "WhatsApp",
     "layoutTitle": "เลย์เอาต์ (ตำแหน่งแผงและแถบข้าง)",
     "layoutHelp": "กำหนดค่าเริ่มต้นสำหรับทุกโปรเจกต์ คุณยังลากแผง Claude ในโปรเจกต์ที่ต้องการเพื่อสลับเฉพาะอันนั้นได้",
     "layoutPresetLL": "แถบข้างและ Claude อยู่ซ้าย",
